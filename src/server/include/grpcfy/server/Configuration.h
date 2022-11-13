@@ -20,6 +20,7 @@ public:
 public:
 	explicit Options(std::string service_name) noexcept(false)
 	    : service_name{std::move(service_name)}
+	    , queue_count{1}
 	{
 		if(Options::service_name.empty()) {
 			throw std::invalid_argument(
@@ -48,13 +49,29 @@ public:
 		return *this;
 	}
 
+	Options &setQueueCount(std::size_t count) noexcept(false)
+	{
+		if(queue_count < 1) {
+			throw std::invalid_argument("zero queues");
+		}
+
+		if(queue_count > 1024) {
+			throw std::invalid_argument("are you serious?");
+		}
+
+		queue_count = count;
+		return *this;
+	}
+
 public:
 	[[nodiscard]] const std::string &getServiceName() const noexcept { return service_name; }
 	[[nodiscard]] const Endpoints &getEndpoints() const noexcept { return endpoints; }
+	[[nodiscard]] const std::size_t &getQueueCount() const noexcept { return queue_count; }
 
 private:
 	std::string service_name;
 	Endpoints endpoints;
+	std::size_t queue_count;
 };
 
 /**

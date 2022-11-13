@@ -41,14 +41,16 @@ public:
 	    : options{std::move(options)}
 	    , environment{std::move(environment)}
 	    , logger{service_engine_category, ServiceEngine::environment.getLoggerCallback()}
-	    , completion_queue{initialize(builder)}
-	    , thread_pool{1}
+	    , completion_queues{initialize(builder)}
+	    , thread_pool{options.getQueueCount()}
 	{
 	}
 
 	~ServiceEngine() noexcept
 	{
-		completion_queue->Shutdown();
+		for(auto &queue : completion_queues) {
+			queue->Shutdown();
+		}
 
 		thread_pool.stop();
 		thread_pool.join();
@@ -83,19 +85,25 @@ public:
 			throw std::runtime_error("none of calls registered");
 		}
 
-		boost::asio::post(thread_pool, [this]() noexcept {
-			auto thread_name = options.getServiceName();
-			thread_name.resize(15);
-			pthread_setname_np(pthread_self(), thread_name.c_str());
+		for(auto &queue : completion_queues) {
+			assert(queue);
+			
+			auto worker = [this, queue = queue.get()]() noexcept {
+				auto thread_name = options.getServiceName();
+				thread_name.resize(15);
+				pthread_setname_np(pthread_self(), thread_name.c_str());
+				
+				setupQueue(queue);
 
-			runAll();
-
-			try {
-				processingLoop();
-			} catch(const std::exception &exception) {
-				GRPCFY_FATAL(logger, "Unexpected exception occurred: {}", exception.what());
-			}
-		});
+				try {
+					processQueue(queue);
+				} catch(const std::exception &exception) {
+					//TODO lfs: handle, shutdown pool and notify for example
+					GRPCFY_FATAL(logger, "Unexpected exception occurred: {}", exception.what());
+				}
+			};
+			boost::asio::post(thread_pool, std::move(worker));
+		}
 	}
 
 	/**
@@ -177,13 +185,16 @@ public:
 	}
 
 private:
+	using CompletionQueues = std::vector<std::unique_ptr<grpc::ServerCompletionQueue>>;
+
+private:
 	const Options options;
 	const Environment environment;
 
 	const grpcfy::core::Logger logger;
 
 	AsyncService async_service;
-	std::unique_ptr<grpc::ServerCompletionQueue> completion_queue;
+	CompletionQueues completion_queues;
 
 	boost::asio::thread_pool thread_pool;
 
@@ -191,12 +202,21 @@ private:
 	std::map<MethodDescriptorPtr, typename detail::ServerStreamMethodMetadata<AsyncService>::Ptr> server_stream_calls;
 
 private:
-	std::unique_ptr<grpc::ServerCompletionQueue> initialize(grpc::ServerBuilder &builder) noexcept
+	CompletionQueues initialize(grpc::ServerBuilder &builder) noexcept
 	{
+		builder.RegisterService(&async_service);
+		
 		for(const auto &[address, credentials] : options.getEndpoints()) {
 			builder.AddListeningPort(address, credentials);
 		}
-		return builder.RegisterService(&async_service).AddCompletionQueue(true);
+		
+		CompletionQueues queues;
+		queues.reserve(options.getQueueCount());
+		for(auto queue{0u}; queue < options.getQueueCount(); ++queue) {
+			queues.emplace_back(builder.AddCompletionQueue(true));
+		}
+
+		return queues;
 	}
 
 private:
@@ -229,31 +249,35 @@ private:
 	}
 
 private:
-	void runAll()
+	void setupQueue(grpc::ServerCompletionQueue *queue)
 	{
-		assert(completion_queue);
+		assert(!completion_queues.empty());
 
 		for(auto &[key, metadata] : singular_calls) {
 			(void)key;
-			metadata->run(environment.getLoggerCallback(), &async_service, completion_queue.get());
+			metadata->run(environment.getLoggerCallback(), &async_service, queue);
 		}
 
 		for(auto &[key, metadata] : server_stream_calls) {
 			(void)key;
-			metadata->run(environment.getLoggerCallback(), &async_service, completion_queue.get());
+			metadata->run(environment.getLoggerCallback(), &async_service, queue);
 		}
 	}
 
-	void processingLoop()
+	void processQueue(grpc::ServerCompletionQueue *queue)
 	{
 		using namespace detail;
+
 		void *tag{nullptr};
 		bool ok{false};
-		while(completion_queue->Next(&tag, &ok)) {
+
+		while(queue->Next(&tag, &ok)) {
 			const auto memory_address = reinterpret_cast<MethodContext::Pointer>(tag);
 			const auto flags = memory_address & MethodContext::kFlagsMask;
 			const auto call_context = reinterpret_cast<MethodContext *>(memory_address & ~MethodContext::kFlagsMask);
+
 			GRPCFY_DEBUG(logger, "Got tag - {}, flags - {:#02x}, ok - {}", fmt::ptr(call_context), flags, ok);
+
 			call_context->onEvent(ok, flags);
 		}
 	};
