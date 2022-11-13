@@ -1,0 +1,7 @@
+function ( grpcfy_standalone_build standalone )
+	if( ${CMAKE_SOURCE_DIR} STREQUAL ${grpcfy_SOURCE_DIR} )
+		set( ${standalone} TRUE PARENT_SCOPE )
+	else()
+		set( ${standalone} FALSE PARENT_SCOPE )
+	endif()
+endfunction ()
