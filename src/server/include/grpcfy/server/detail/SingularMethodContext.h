@@ -75,7 +75,18 @@ class SingularMethodContext final : public MethodContext
 {
 public:
 	using Self = SingularMethodContext<AsyncService, InboundRequest, OutboundResponse, Acceptor>;
-	using InboundRequestCallback = std::function<void(Self *)>;
+	
+	// We use opaque pointers to avoid std::function call
+	struct InboundRequestCallback final
+	{
+		void (*function)(Self * context, void * opaque);
+		void * opaque;
+		
+		void notify(Self * context) const noexcept
+		{
+			function(context, opaque);
+		}
+	};
 
 	using ResponseOneOf =
 	    boost::outcome_v2::result<OutboundResponse, grpc::Status, boost::outcome_v2::policy::terminate>;
@@ -227,7 +238,7 @@ private:
 		(new Self(method_descriptor, logger.getCallback(), service, completion_queue, inbound_request_callback))->run();
 
 		state = State::AwaitingResponse;
-		(*inbound_request_callback)(this);
+		inbound_request_callback->notify(this);
 	}
 
 	void onAlarm(Flags flags)

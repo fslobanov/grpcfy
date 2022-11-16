@@ -27,6 +27,8 @@ template<typename AsyncService,
          ServerStreamAcceptorFn<AsyncService, InboundRequest, OutboundNotification> Acceptor>
 struct ServerStreamMethodMetadataImpl final : public ServerStreamMethodMetadata<AsyncService>
 {
+	using Self = ServerStreamMethodMetadataImpl<AsyncService, InboundRequest, OutboundNotification, Acceptor>;
+	
 	using Context = ServerStreamMethodContext<AsyncService, InboundRequest, OutboundNotification, Acceptor>;
 	using ContextCallback = typename Context::InboundRequestCallback;
 
@@ -37,10 +39,7 @@ struct ServerStreamMethodMetadataImpl final : public ServerStreamMethodMetadata<
 	                                        UserCallback user_callback)
 	    : method_descriptor{method_descriptor}
 	    , user_provided_callback{std::move(user_callback)}
-	    , inbound_request_callback{[this](Context *ctx) {
-		    //Sharing internal method implementation with userspace via weak pointer
-		    user_provided_callback(Method{ctx->getImpl()});
-	    }}
+	    , inbound_request_callback{callbackFn, this}
 	{
 		assert(ServerStreamMethodMetadataImpl::method_descriptor);
 		assert(ServerStreamMethodMetadataImpl::user_provided_callback);
@@ -57,6 +56,13 @@ struct ServerStreamMethodMetadataImpl final : public ServerStreamMethodMetadata<
 	const google::protobuf::MethodDescriptor *const method_descriptor;
 	UserCallback user_provided_callback;
 	ContextCallback inbound_request_callback;
+	
+private:
+	static constexpr auto callbackFn = +[](Context *ctx, void *ptr) noexcept {
+		const auto self = reinterpret_cast<Self *>(ptr);
+		//Transfer call context ownership to userspace with unique_ptr
+		self->user_provided_callback(Method{ctx->getImpl()});
+	};
 };
 
 }  // namespace grpcfy::server::detail

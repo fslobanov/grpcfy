@@ -57,7 +57,18 @@ class ServerStreamMethodContext final : public MethodContext
 {
 public:
 	using Self = ServerStreamMethodContext<AsyncService, InboundRequest, OutboundNotification, Acceptor>;
-	using InboundRequestCallback = std::function<void(Self *)>;
+	
+	// We use opaque pointers to avoid std::function usage
+	struct InboundRequestCallback final
+	{
+		void (*function)(Self * context, void * opaque);
+		void * opaque;
+		
+		void notify(Self * context) const noexcept
+		{
+			function(context, opaque);
+		}
+	};
 
 	class Impl;
 	using ImplPtr = std::weak_ptr<Impl>;
@@ -297,7 +308,7 @@ public:
 			(new Self(method_descriptor, logger.getCallback(), service, completion_queue, inbound_request_callback))
 			    ->run();
 			state = State::AwaitingNotifications;
-			(*inbound_request_callback)(context);
+			inbound_request_callback->notify(context);
 		}
 
 		void onAlarm(Flags)
