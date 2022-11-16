@@ -209,12 +209,10 @@ private:
 		for(const auto &[address, credentials] : options.getEndpoints()) {
 			builder.AddListeningPort(address, credentials);
 		}
-		
+
 		CompletionQueues queues;
-		queues.reserve(options.getQueueCount());
-		for(auto queue{0u}; queue < options.getQueueCount(); ++queue) {
-			queues.emplace_back(builder.AddCompletionQueue(true));
-		}
+		queues.resize(options.getQueueCount());
+		std::generate(queues.begin(), queues.end(), [&builder]() { return builder.AddCompletionQueue(true); });
 
 		return queues;
 	}
@@ -255,12 +253,12 @@ private:
 
 		for(auto &[key, metadata] : singular_calls) {
 			(void)key;
-			metadata->run(environment.getLoggerCallback(), &async_service, queue);
+			metadata->makeCallHandler(environment.getLoggerCallback(), &async_service, queue);
 		}
 
 		for(auto &[key, metadata] : server_stream_calls) {
 			(void)key;
-			metadata->run(environment.getLoggerCallback(), &async_service, queue);
+			metadata->makeCallHandler(environment.getLoggerCallback(), &async_service, queue);
 		}
 	}
 

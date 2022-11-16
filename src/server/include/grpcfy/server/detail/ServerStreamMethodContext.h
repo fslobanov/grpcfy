@@ -21,6 +21,7 @@
 	    void *tag) { service->ACCEPT_METHOD(context, request, stream_writer, new_call_cq, notification_cq, tag); }
 
 namespace grpcfy::server {
+
 /**
  * @brief ServerStreamMethod acceptor signature, see below for description
  */
@@ -81,10 +82,6 @@ public:
 	~ServerStreamMethodContext() final { GRPCFY_DEBUG(impl->getLogger(), "{} destructed", impl->identity()); }
 
 public:
-	/**
-	 * @brief Obtain type of this method
-	 */
-	[[nodiscard]] Type getType() const noexcept final { return Type::ServerStream; }
 	/**
 	 * @brief Start method execution
 	 */

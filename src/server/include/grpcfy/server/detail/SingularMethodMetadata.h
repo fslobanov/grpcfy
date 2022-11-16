@@ -14,7 +14,7 @@ struct SingularMethodMetadata
 {
 	using Ptr = std::unique_ptr<SingularMethodMetadata>;
 	virtual ~SingularMethodMetadata() = default;
-	virtual void run(core::LoggerCallbackRef logger_callback,
+	virtual void makeCallHandler(core::LoggerCallbackRef logger_callback,
 	                 AsyncService *async_service,
 	                 grpc::ServerCompletionQueue *completion_queue) = 0;
 };
@@ -44,7 +44,7 @@ struct SingularMethodMetadataImpl final : public SingularMethodMetadata<AsyncSer
 		assert(SingularMethodMetadataImpl::user_provided_callback);
 	}
 
-	void run(core::LoggerCallbackRef logger_callback,
+	void makeCallHandler(core::LoggerCallbackRef logger_callback,
 	         AsyncService *async_service,
 	         grpc::ServerCompletionQueue *completion_queue) final
 	{

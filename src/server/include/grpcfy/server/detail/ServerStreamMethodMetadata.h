@@ -2,6 +2,8 @@
 
 #include <grpcfy/server/ServerStreamMethod.h>
 
+#include <google/protobuf/descriptor.h>
+
 namespace grpcfy::server::detail {
 
 /**
@@ -14,7 +16,7 @@ struct ServerStreamMethodMetadata
 {
 	using Ptr = std::unique_ptr<ServerStreamMethodMetadata>;
 	virtual ~ServerStreamMethodMetadata() = default;
-	virtual void run(core::LoggerCallbackRef logger_callback,
+	virtual void makeCallHandler(core::LoggerCallbackRef logger_callback,
 	                 AsyncService *async_service,
 	                 grpc::ServerCompletionQueue *completion_queue) = 0;
 };
@@ -44,7 +46,7 @@ struct ServerStreamMethodMetadataImpl final : public ServerStreamMethodMetadata<
 		assert(ServerStreamMethodMetadataImpl::user_provided_callback);
 	}
 
-	void run(core::LoggerCallbackRef logger_callback,
+	void makeCallHandler(core::LoggerCallbackRef logger_callback,
 	         AsyncService *async_service,
 	         grpc::ServerCompletionQueue *completion_queue) final
 	{

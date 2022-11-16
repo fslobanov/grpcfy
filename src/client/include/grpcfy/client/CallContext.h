@@ -10,7 +10,7 @@ namespace grpcfy::client {
  * @details Represents one RPC call, singular or stream. Dispatches on CompletionQueue
  *
  */
-class CallContext : public core::EnablePointerTagThis<CallContext>
+class CallContext : public core::TagThisPointer<CallContext>
 {
 public:
 	/**

@@ -24,19 +24,6 @@
 		service->ACCEPT_METHOD(context, request, response_writer, new_call_cq, notification_cq, tag); \
 	}
 
-#define GRPCFY_SINGULAR_METHOD_ACCEPTOR_FN(FN, SERVICE_TYPE, REQUEST_TYPE, RESPONSE_TYPE, ACCEPT_METHOD) \
-	inline void FN(SERVICE_TYPE *service,                                                                \
-	               ::grpc::ServerContext *context,                                                       \
-	               REQUEST_TYPE *request,                                                                \
-	               ::grpc::ServerAsyncResponseWriter<RESPONSE_TYPE> *response_writer,                    \
-	               ::grpc::CompletionQueue *new_call_cq,                                                 \
-	               ::grpc::ServerCompletionQueue *notification_cq,                                       \
-	               void *tag)                                                                            \
-	{                                                                                                    \
-		assert(service &&context &&request &&response_writer &&new_call_cq &&notification_cq &&tag);     \
-		service->ACCEPT_METHOD(context, request, response_writer, new_call_cq, notification_cq, tag);    \
-	}
-
 namespace grpcfy::server {
 /**
  * @brief SingularMethod acceptor signature, see below for description
@@ -122,14 +109,9 @@ public:
 
 public:
 	/**
-	 * @brief Obtain type of this method
-	 */
-	Type getType() const noexcept override { return Type::Singular; }
-
-	/**
 	 * @brief Start method execution
 	 */
-	void run() noexcept override
+	void run() noexcept final
 	{
 		assert(State::StandingBy == state && "illegal state");
 		GRPCFY_DEBUG(logger, "{} running", identity());
@@ -149,7 +131,7 @@ public:
 	 * @param ok Success of event
 	 * @param flags Pointer tags
 	 */
-	void onEvent(bool ok, Flags flags) noexcept override
+	void onEvent(bool ok, Flags flags) noexcept final
 	{
 		GRPCFY_DEBUG(logger,
 		             "{} got event, state - {}, ok - {}, flags - {:#02x}",

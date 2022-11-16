@@ -5,7 +5,7 @@
 namespace grpcfy::core {
 
 template<typename T>
-class EnablePointerTagThis
+class TagThisPointer
 {
 public:
 	/**

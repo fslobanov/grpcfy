@@ -10,25 +10,10 @@ namespace grpcfy::server::detail {
  * @brief Type erased base for each type of gRPC methods
  * @details Each supported method type should inherit this base, tags from CompletionQueue being casted to this type
  */
-class MethodContext : public core::EnablePointerTagThis<MethodContext>
+class MethodContext : public core::TagThisPointer<MethodContext>
 {
 public:
-	/**
-	 * @brief Static RTTI for all method contexts
-	 */
-	enum class Type : uint32_t
-	{
-		Singular,
-		ServerStream
-	};
-
-public:
 	virtual ~MethodContext() noexcept = default;
-
-	/**
-	 * @brief Obtain real context type
-	 */
-	[[nodiscard]] virtual Type getType() const noexcept = 0;
 
 	/**
 	 * @brief Runs a method
