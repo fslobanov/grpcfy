@@ -9,8 +9,6 @@ void print(const grpcfy::core::LogMessage &message);
 
 signed main(signed, char **)
 {
-	static_assert(std::is_same_v<decltype(member_function_acceptor_prototype()), void>);
-
 	boost::asio::io_context io_context;
 	const auto guard = boost::asio::make_work_guard(io_context);
 
@@ -34,7 +32,6 @@ signed main(signed, char **)
 	}};
 
 	FoobarEngine foobar_engine{server_builder, std::move(options), std::move(environment)};
-
 	const GetFooHandler get_foo_handler{foobar_engine, io_context};
 	const SubscribeFooHandler subscribe_foo_handler{foobar_engine, io_context};
 
@@ -55,7 +52,7 @@ signed main(signed, char **)
 	foobar_engine.run(server.get());
 	io_context.run();
 
-	fmt::print("EXIT\n");
+	fmt::print("Server shutdown ...\n");
 	return EXIT_SUCCESS;
 }
 

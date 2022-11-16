@@ -22,25 +22,26 @@ struct SingularMethodMetadata
 template<typename AsyncService,
          typename InboundRequest,
          typename OutboundResponse,
-         SingularMethodAcceptorFn<AsyncService, InboundRequest, OutboundResponse> Acceptor>
+         SingularMethodAcceptorFn<AsyncService, InboundRequest, OutboundResponse> Acceptor,
+         typename UserCallback>
 struct SingularMethodMetadataImpl final : public SingularMethodMetadata<AsyncService>
 {
-	using Self = SingularMethodMetadataImpl<AsyncService, InboundRequest, OutboundResponse, Acceptor>;
+	using Self = SingularMethodMetadataImpl<AsyncService, InboundRequest, OutboundResponse, Acceptor, UserCallback>;
 	
 	using Context = SingularMethodContext<AsyncService, InboundRequest, OutboundResponse, Acceptor>;
 	using ContextCallback = typename Context::InboundRequestCallback;
 
-	using UserCallback = SingularMethodCallback<AsyncService, InboundRequest, OutboundResponse, Acceptor>;
+	//using UserCallback = SingularMethodCallback<AsyncService, InboundRequest, OutboundResponse, Acceptor>;
 	using Method = SingularMethod<AsyncService, InboundRequest, OutboundResponse, Acceptor>;
 
 	explicit SingularMethodMetadataImpl(const google::protobuf::MethodDescriptor *const method_descriptor,
-	                                    UserCallback user_callback)
+	                                    UserCallback &&user_callback)
 	    : method_descriptor{method_descriptor}
-	    , user_provided_callback{std::move(user_callback)}
+	    , user_callback{std::forward<UserCallback>(user_callback)}
 	    , inbound_request_callback{callbackFn, this}
 	{
 		assert(SingularMethodMetadataImpl::method_descriptor);
-		assert(SingularMethodMetadataImpl::user_provided_callback);
+		//assert(SingularMethodMetadataImpl::user_callback);
 	}
 
 	void makeCallHandler(core::LoggerCallbackRef logger_callback,
@@ -52,14 +53,14 @@ struct SingularMethodMetadataImpl final : public SingularMethodMetadata<AsyncSer
 	}
 
 	const google::protobuf::MethodDescriptor *const method_descriptor;
-	const UserCallback user_provided_callback;
+	const UserCallback user_callback;
 	const ContextCallback inbound_request_callback;
 	
 private:
 	static constexpr auto callbackFn = +[](Context *ctx, void *ptr) noexcept {
 		const auto self = reinterpret_cast<Self *>(ptr);
 		//Transfer call context ownership to userspace with unique_ptr
-		self->user_provided_callback(Method{std::unique_ptr<Context>{ctx}});
+		self->user_callback(Method{std::unique_ptr<Context>{ctx}});
 	};
 };
 

@@ -20,7 +20,14 @@
 	    ::grpc::CompletionQueue *new_call_cq,                                                         \
 	    ::grpc::ServerCompletionQueue *notification_cq,                                               \
 	    void *tag) {                                                                                  \
-		assert(service &&context &&request &&response_writer &&new_call_cq &&notification_cq &&tag);  \
+		assert(service);                                                                              \
+		assert(context);                                                                              \
+		assert(request);                                                                              \
+		assert(response_writer);                                                                      \
+		assert(new_call_cq);                                                                          \
+		assert(notification_cq);                                                                      \
+		assert(tag);                                                                                  \
+                                                                                                      \
 		service->ACCEPT_METHOD(context, request, response_writer, new_call_cq, notification_cq, tag); \
 	}
 
@@ -75,17 +82,14 @@ class SingularMethodContext final : public MethodContext
 {
 public:
 	using Self = SingularMethodContext<AsyncService, InboundRequest, OutboundResponse, Acceptor>;
-	
+
 	// We use opaque pointers to avoid std::function call
 	struct InboundRequestCallback final
 	{
-		void (*function)(Self * context, void * opaque);
-		void * opaque;
-		
-		void notify(Self * context) const noexcept
-		{
-			function(context, opaque);
-		}
+		void (*function)(Self *context, void *opaque);
+		void *opaque;
+
+		void notify(Self *context) const noexcept { function(context, opaque); }
 	};
 
 	using ResponseOneOf =

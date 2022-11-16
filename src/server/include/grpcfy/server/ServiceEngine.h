@@ -114,22 +114,25 @@ public:
 	 * @param method_descriptor Reflective method descriptor
 	 * @param on_request New call notification callback
 	 */
+	
 	template<typename InboundRequest,
 	         typename OutboundResponse,
-	         SingularMethodAcceptorFn<AsyncService, InboundRequest, OutboundResponse> Acceptor>
+	         //SingularMethodCallback<AsyncService, InboundRequest, OutboundResponse, Acceptor> &&user_callback) noexcept(false)
+	         SingularMethodAcceptorFn<AsyncService, InboundRequest, OutboundResponse> Acceptor,
+	         typename UserCallback>
 	void registerSingularMethod(
 	    MethodDescriptorPtr method_descriptor,
-	    SingularMethodCallback<AsyncService, InboundRequest, OutboundResponse, Acceptor> &&on_request) noexcept(false)
+	    UserCallback &&user_callback) noexcept(false)
 	{
 		checkMessageDerived<InboundRequest>();
 		checkMessageDerived<OutboundResponse>();
-		checkNullArguments(method_descriptor, on_request);
+		//checkNullArguments(method_descriptor, user_callback);
 		checkDescriptorsMatch<InboundRequest>(method_descriptor->input_type());
 		checkDescriptorsMatch<OutboundResponse>(method_descriptor->output_type());
 
 		auto metadata = std::make_unique<
-		    detail::SingularMethodMetadataImpl<AsyncService, InboundRequest, OutboundResponse, Acceptor>>(
-		    method_descriptor, std::move(on_request));
+		    detail::SingularMethodMetadataImpl<AsyncService, InboundRequest, OutboundResponse, Acceptor, UserCallback>>(
+		    method_descriptor, std::forward<UserCallback>(user_callback));
 
 		const auto [iterator, ok] = singular_calls.emplace(method_descriptor, std::move(metadata));
 		(void)iterator;
