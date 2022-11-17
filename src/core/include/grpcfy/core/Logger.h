@@ -44,16 +44,16 @@ enum class LogLevel : std::uint8_t
 struct SourceLocation final
 {
 	SourceLocation() noexcept
-	    : file(nullptr)
-	    , function(nullptr)
-	    , line(-1)
+	    : file{nullptr}
+	    , function{nullptr}
+	    , line{-1}
 	{
 	}
 
 	SourceLocation(const char *file, const char *function, int line) noexcept
-	    : file(file)
-	    , function(function)
-	    , line(line)
+	    : file{file}
+	    , function{function}
+	    , line{line}
 	{
 	}
 
@@ -70,8 +70,8 @@ struct SourceLocation final
 struct LogMessage final
 {
 	LogMessage() noexcept
-	    : category(default_category())
-	    , level(LogLevel::__Size)
+	    : category{default_category()}
+	    , level{LogLevel::__Size}
 	{
 	}
 
@@ -81,12 +81,12 @@ struct LogMessage final
 	           std::thread::id thread_id,
 	           SourceLocation location,
 	           std::string &&message) noexcept
-	    : category(category)
-	    , level(level)
-	    , timestamp(timestamp)
-	    , thread_id(thread_id)
-	    , location(location)
-	    , message(std::move(message))
+	    : category{category}
+	    , level{level}
+	    , timestamp{timestamp}
+	    , thread_id{thread_id}
+	    , location{location}
+	    , message{std::move(message)}
 	{
 	}
 
@@ -115,19 +115,19 @@ using LoggerCallbackRef = std::reference_wrapper<const LoggerCallback>;
 class Logger final
 {
 public:
-	using CategoryGetter = std::string_view (*)();
+	using CategoryProvider = std::string_view (*)();
 
 public:
-	Logger(CategoryGetter category_getter, LoggerCallbackRef callback_ref) noexcept
-	    : category_getter(category_getter)
-	    , callback_ref(callback_ref)
+	Logger(CategoryProvider category_provider, LoggerCallbackRef callback_ref) noexcept
+	    : category_provider{category_provider}
+	    , callback_ref{callback_ref}
 	{
 	}
 
 	template<typename Format, typename... Args>
 	void log(LogLevel level, SourceLocation location, Format &&format, Args &&...args) const noexcept
 	{
-		callback_ref.get()(LogMessage{category_getter(),
+		callback_ref.get()(LogMessage{category_provider(),
 		                              level,
 		                              std::chrono::system_clock::now(),
 		                              std::this_thread::get_id(),
@@ -138,7 +138,7 @@ public:
 	[[nodiscard]] LoggerCallbackRef getCallback() const noexcept { return callback_ref; }
 
 private:
-	CategoryGetter category_getter;
+	CategoryProvider category_provider;
 	LoggerCallbackRef callback_ref;
 };
 

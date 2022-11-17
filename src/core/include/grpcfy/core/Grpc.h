@@ -64,7 +64,7 @@ namespace grpcfy::core {
 {
 	std::vector<const google::protobuf::MethodDescriptor *> methods;
 	methods.reserve(service_descriptor->method_count());
-	for(int method_idx = 0; method_idx < service_descriptor->method_count(); ++method_idx) {
+	for(auto method_idx{0}; method_idx < service_descriptor->method_count(); ++method_idx) {
 		methods.emplace_back(service_descriptor->method(method_idx));
 	}
 	return methods;

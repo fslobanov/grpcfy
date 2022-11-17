@@ -14,9 +14,9 @@ struct SingularMethodMetadata
 {
 	using Ptr = std::unique_ptr<SingularMethodMetadata>;
 	virtual ~SingularMethodMetadata() = default;
-	virtual void makeCallHandler(core::LoggerCallbackRef logger_callback,
-	                             AsyncService *async_service,
-	                             grpc::ServerCompletionQueue *completion_queue) = 0;
+	virtual void spawn(core::LoggerCallbackRef logger_callback,
+	                   AsyncService *async_service,
+	                   grpc::ServerCompletionQueue *completion_queue) = 0;
 };
 
 template<typename AsyncService,
@@ -44,12 +44,13 @@ struct SingularMethodMetadataImpl final : public SingularMethodMetadata<AsyncSer
 		//assert(SingularMethodMetadataImpl::user_callback);
 	}
 
-	void makeCallHandler(core::LoggerCallbackRef logger_callback,
-	                     AsyncService *async_service,
-	                     grpc::ServerCompletionQueue *completion_queue) final
+	void spawn(core::LoggerCallbackRef logger_callback,
+	           AsyncService *async_service,
+	           grpc::ServerCompletionQueue *completion_queue) final
 	{
-		(new Context(method_descriptor, logger_callback, async_service, completion_queue, &inbound_request_callback))
-		    ->run();
+		auto context =
+		    new Context(method_descriptor, logger_callback, async_service, completion_queue, &inbound_request_callback);
+		context->run();
 	}
 
 	const google::protobuf::MethodDescriptor *const method_descriptor;

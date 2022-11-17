@@ -81,7 +81,7 @@ public:
 			return message;
 		}());
 
-		if(singular_calls.empty() && server_stream_calls.empty()) {
+		if(singular_methods.empty() && server_stream_methods.empty()) {
 			throw std::runtime_error("none of calls registered");
 		}
 
@@ -136,7 +136,7 @@ public:
 		    detail::SingularMethodMetadataImpl<AsyncService, InboundRequest, OutboundResponse, Acceptor, UserCallback>>(
 		    method_descriptor, std::forward<UserCallback>(user_callback));
 
-		const auto [iterator, ok] = singular_calls.emplace(method_descriptor, std::move(metadata));
+		const auto [iterator, ok] = singular_methods.emplace(method_descriptor, std::move(metadata));
 		(void)iterator;
 
 		if(!ok) {
@@ -179,7 +179,7 @@ public:
 		                                                                        UserCallback>>(
 		    method_descriptor, std::forward<UserCallback>(user_callback));
 
-		const auto [iterator, ok] = server_stream_calls.emplace(method_descriptor, std::move(metadata));
+		const auto [iterator, ok] = server_stream_methods.emplace(method_descriptor, std::move(metadata));
 		(void)iterator;
 
 		if(!ok) {
@@ -207,8 +207,8 @@ private:
 
 	boost::asio::thread_pool thread_pool;
 
-	std::map<MethodDescriptorPtr, typename detail::SingularMethodMetadata<AsyncService>::Ptr> singular_calls;
-	std::map<MethodDescriptorPtr, typename detail::ServerStreamMethodMetadata<AsyncService>::Ptr> server_stream_calls;
+	std::map<MethodDescriptorPtr, typename detail::SingularMethodMetadata<AsyncService>::Ptr> singular_methods;
+	std::map<MethodDescriptorPtr, typename detail::ServerStreamMethodMetadata<AsyncService>::Ptr> server_stream_methods;
 
 private:
 	CompletionQueues initialize(grpc::ServerBuilder &builder) noexcept
@@ -260,21 +260,19 @@ private:
 	{
 		assert(!completion_queues.empty());
 
-		for(auto &[key, metadata] : singular_calls) {
+		for(auto &[key, metadata] : singular_methods) {
 			(void)key;
-			
-			for(auto count{0u}; count < options.getHandlersPerQueue(); ++count)
-			{
-				metadata->makeCallHandler(environment.getLoggerCallback(), &async_service, queue);
+
+			for(auto count{0u}; count < options.getHandlersPerQueue(); ++count) {
+				metadata->spawn(environment.getLoggerCallback(), &async_service, queue);
 			}
 		}
 
-		for(auto &[key, metadata] : server_stream_calls) {
+		for(auto &[key, metadata] : server_stream_methods) {
 			(void)key;
-			
-			for(auto count{0u}; count < options.getHandlersPerQueue(); ++count)
-			{
-				metadata->makeCallHandler(environment.getLoggerCallback(), &async_service, queue);
+
+			for(auto count{0u}; count < options.getHandlersPerQueue(); ++count) {
+				metadata->spawn(environment.getLoggerCallback(), &async_service, queue);
 			}
 		}
 	}
@@ -289,11 +287,11 @@ private:
 		while(queue->Next(&tag, &ok)) {
 			const auto memory_address = reinterpret_cast<MethodContext::Pointer>(tag);
 			const auto flags = memory_address & MethodContext::kFlagsMask;
-			const auto call_context = reinterpret_cast<MethodContext *>(memory_address & ~MethodContext::kFlagsMask);
+			const auto context = reinterpret_cast<MethodContext *>(memory_address & ~MethodContext::kFlagsMask);
 
-			GRPCFY_DEBUG(logger, "Got tag - {}, flags - {:#02x}, ok - {}", fmt::ptr(call_context), flags, ok);
+			GRPCFY_DEBUG(logger, "Got tag - {}, flags - {:#02x}, ok - {}", fmt::ptr(context), flags, ok);
 
-			call_context->onEvent(ok, flags);
+			context->onEvent(ok, flags);
 		}
 	};
 };
