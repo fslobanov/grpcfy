@@ -87,12 +87,12 @@ public:
 
 		for(auto &queue : completion_queues) {
 			assert(queue);
-			
+
 			auto worker = [this, queue = queue.get()]() noexcept {
 				auto thread_name = options.getServiceName();
 				thread_name.resize(15);
 				pthread_setname_np(pthread_self(), thread_name.c_str());
-				
+
 				setupQueue(queue);
 
 				try {
@@ -114,15 +114,14 @@ public:
 	 * @param method_descriptor Reflective method descriptor
 	 * @param on_request New call notification callback
 	 */
-	
-	template<typename InboundRequest,
-	         typename OutboundResponse,
-	         //SingularMethodCallback<AsyncService, InboundRequest, OutboundResponse, Acceptor> &&user_callback) noexcept(false)
-	         SingularMethodAcceptorFn<AsyncService, InboundRequest, OutboundResponse> Acceptor,
-	         typename UserCallback>
-	void registerSingularMethod(
-	    MethodDescriptorPtr method_descriptor,
-	    UserCallback &&user_callback) noexcept(false)
+
+	template<
+	    typename InboundRequest,
+	    typename OutboundResponse,
+	    //SingularMethodCallback<AsyncService, InboundRequest, OutboundResponse, Acceptor> &&user_callback) noexcept(false)
+	    SingularMethodAcceptorFn<AsyncService, InboundRequest, OutboundResponse> Acceptor,
+	    typename UserCallback>
+	void registerSingularMethod(MethodDescriptorPtr method_descriptor, UserCallback &&user_callback) noexcept(false)
 	{
 		checkMessageDerived<InboundRequest>();
 		checkMessageDerived<OutboundResponse>();
@@ -157,21 +156,25 @@ public:
 	 */
 	template<typename InboundRequest,
 	         typename OutboundNotification,
-	         ServerStreamAcceptorFn<AsyncService, InboundRequest, OutboundNotification> Acceptor>
+	         ServerStreamAcceptorFn<AsyncService, InboundRequest, OutboundNotification> Acceptor,
+	         typename UserCallback>
 	void registerServerStreamMethod(
 	    MethodDescriptorPtr method_descriptor,
-	    ServerStreamMethodCallback<AsyncService, InboundRequest, OutboundNotification, Acceptor>
-	        &&on_request) noexcept(false)
+	    //ServerStreamMethodCallback<AsyncService, InboundRequest, OutboundNotification, Acceptor> &&on_request) noexcept(false)
+	    UserCallback &&user_callback)
 	{
 		checkMessageDerived<InboundRequest>();
 		checkMessageDerived<OutboundNotification>();
-		checkNullArguments(method_descriptor, on_request);
+		//checkNullArguments(method_descriptor, user_callback);
 		checkDescriptorsMatch<InboundRequest>(method_descriptor->input_type());
 		checkDescriptorsMatch<OutboundNotification>(method_descriptor->output_type());
 
-		auto metadata = std::make_unique<
-		    detail::ServerStreamMethodMetadataImpl<AsyncService, InboundRequest, OutboundNotification, Acceptor>>(
-		    method_descriptor, std::move(on_request));
+		auto metadata = std::make_unique<detail::ServerStreamMethodMetadataImpl<AsyncService,
+		                                                                        InboundRequest,
+		                                                                        OutboundNotification,
+		                                                                        Acceptor,
+		                                                                        UserCallback>>(
+		    method_descriptor, std::forward<UserCallback>(user_callback));
 
 		const auto [iterator, ok] = server_stream_calls.emplace(method_descriptor, std::move(metadata));
 		(void)iterator;
@@ -208,7 +211,7 @@ private:
 	CompletionQueues initialize(grpc::ServerBuilder &builder) noexcept
 	{
 		builder.RegisterService(&async_service);
-		
+
 		for(const auto &[address, credentials] : options.getEndpoints()) {
 			builder.AddListeningPort(address, credentials);
 		}

@@ -10,10 +10,10 @@ struct SubscribeFooHandler final
 	                                                                       FooStreamRequest,
 	                                                                       FooStreamNotification,
 	                                                                       RequestSubscribeFoo);
-	using Method =
+	using SubscribeFoo =
 	    grpcfy::server::ServerStreamMethod<FooBar::AsyncService, FooStreamRequest, FooStreamNotification, kAcceptor>;
-	using Callback = grpcfy::server::
-	    ServerStreamMethodCallback<FooBar::AsyncService, FooStreamRequest, FooStreamNotification, kAcceptor>;
+	/*using Callback = grpcfy::server::
+	    ServerStreamMethodCallback<FooBar::AsyncService, FooStreamRequest, FooStreamNotification, kAcceptor>;*/
 
 	SubscribeFooHandler(FoobarEngine &engine, boost::asio::io_context &ctx)
 	    : ctx{ctx}
@@ -21,21 +21,23 @@ struct SubscribeFooHandler final
 	    , generator{random()}
 	    , distribution{0, 10}
 	{
-		Callback callback = [&](Method &&stream_method) { handle(std::move(stream_method)); };
-		engine.registerServerStreamMethod(grpcfy::core::findMethod(FooBar::service_full_name(), "SubscribeFoo"),
-		                                  std::move(callback));
+		const auto descriptor = grpcfy::core::findMethod(FooBar::service_full_name(), "SubscribeFoo");
+		auto callback = [this](SubscribeFoo &&subscribe_foo) { handle(std::move(subscribe_foo)); };
+		engine.registerServerStreamMethod<FooStreamRequest, FooStreamNotification, kAcceptor>(descriptor,
+		                                                                                      std::move(callback));
 		startTimer(0ms);
 	}
 
-	void handle(Method &&stream)
+	void handle(SubscribeFoo &&subscribe_foo)
 	{
 		fmt::print("[<--] ServerStream '{}' from '{}': {}\n",
 		           FooRequest::descriptor()->full_name(),
-		           stream.getPeer().assume_value(),
-		           stream.getRequest().assume_value()->ShortDebugString());
+		           subscribe_foo.getPeer().assume_value(),
+		           subscribe_foo.getRequest().assume_value()->ShortDebugString());
 
-		boost::asio::post(
-		    ctx, [&, stream = std::move(stream)]() mutable noexcept { streams.emplace_back(std::move(stream)); });
+		boost::asio::post(ctx, [&, subscribe_foo = std::move(subscribe_foo)]() mutable noexcept {
+			streams.emplace_back(std::move(subscribe_foo));
+		});
 	}
 
 	void startTimer(std::chrono::microseconds timeout)
@@ -65,7 +67,7 @@ struct SubscribeFooHandler final
 				           peer ? peer.value() : std::string{"..."});
 
 				iterator =
-				    Method::State::Finished
+				    SubscribeFoo::State::Finished
 				            == stream.close(grpc::Status{grpc::StatusCode::DO_NOT_USE, "your time is up", "no, really"})
 				        ? streams.erase(iterator)
 				        : std::next(iterator);
@@ -77,11 +79,11 @@ struct SubscribeFooHandler final
 
 			const auto peer = stream.getPeer();
 			fmt::print("[-->] ServerStream '{}' to '{}': {}\n",
-			           FooResponse::descriptor()->full_name(),
+			           FooStreamNotification::descriptor()->full_name(),
 			           peer ? peer.value() : std::string{"..."},
 			           notification.ShortDebugString());
 
-			iterator = Method::State::Finished == stream.push(FooStreamNotification{notification})
+			iterator = SubscribeFoo::State::Finished == stream.push(FooStreamNotification{notification})
 			               ? streams.erase(iterator)
 			               : std::next(iterator);
 		}
@@ -91,7 +93,7 @@ struct SubscribeFooHandler final
 
 	boost::asio::io_context &ctx;
 	boost::asio::steady_timer timer{ctx};
-	std::vector<Method> streams;
+	std::vector<SubscribeFoo> streams;
 
 	std::random_device random;
 	std::mt19937 generator;

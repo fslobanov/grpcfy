@@ -27,7 +27,7 @@ template<typename AsyncService,
 struct SingularMethodMetadataImpl final : public SingularMethodMetadata<AsyncService>
 {
 	using Self = SingularMethodMetadataImpl<AsyncService, InboundRequest, OutboundResponse, Acceptor, UserCallback>;
-	
+
 	using Context = SingularMethodContext<AsyncService, InboundRequest, OutboundResponse, Acceptor>;
 	using ContextCallback = typename Context::InboundRequestCallback;
 
@@ -55,7 +55,7 @@ struct SingularMethodMetadataImpl final : public SingularMethodMetadata<AsyncSer
 	const google::protobuf::MethodDescriptor *const method_descriptor;
 	const UserCallback user_callback;
 	const ContextCallback inbound_request_callback;
-	
+
 private:
 	static constexpr auto callbackFn = +[](Context *ctx, void *ptr) noexcept {
 		const auto self = reinterpret_cast<Self *>(ptr);

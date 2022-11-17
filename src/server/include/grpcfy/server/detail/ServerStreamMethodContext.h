@@ -57,17 +57,14 @@ class ServerStreamMethodContext final : public MethodContext
 {
 public:
 	using Self = ServerStreamMethodContext<AsyncService, InboundRequest, OutboundNotification, Acceptor>;
-	
+
 	// We use opaque pointers to avoid std::function usage
 	struct InboundRequestCallback final
 	{
-		void (*function)(Self * context, void * opaque);
-		void * opaque;
-		
-		void notify(Self * context) const noexcept
-		{
-			function(context, opaque);
-		}
+		void (*function)(Self *context, void *opaque);
+		void *opaque;
+
+		void notify(Self *context) const noexcept { function(context, opaque); }
 	};
 
 	class Impl;
