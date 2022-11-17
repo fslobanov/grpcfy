@@ -25,7 +25,10 @@ signed main(signed, char **)
 
 	grpc::ServerBuilder server_builder;
 	grpcfy::server::Options options{FooBar::service_full_name()};
-	options.addEndpoint("127.0.0.1:50505", grpc::InsecureServerCredentials()).setQueueCount(4);
+	options.addEndpoint("127.0.0.1:50505", grpc::InsecureServerCredentials())
+	    .setQueueCount(2)
+	    .setThreadsPerQueue(2)
+	    .setHandlersPerThread(2);
 
 	grpcfy::server::Environment environment{[&](grpcfy::core::LogMessage &&message) {
 		boost::asio::post(io_context, [message = std::move(message)]() { print(message); });

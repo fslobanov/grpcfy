@@ -42,7 +42,7 @@ public:
 	    , environment{std::move(environment)}
 	    , logger{service_engine_category, ServiceEngine::environment.getLoggerCallback()}
 	    , completion_queues{initialize(builder)}
-	    , thread_pool{options.getQueueCount()}
+	    , thread_pool{options.getQueueCount() * options.getThreadsPerQueue()}
 	{
 	}
 
@@ -88,7 +88,7 @@ public:
 		for(auto &queue : completion_queues) {
 			assert(queue);
 
-			auto worker = [this, queue = queue.get()]() noexcept {
+			const auto worker = [this, queue = queue.get()]() noexcept {
 				auto thread_name = options.getServiceName();
 				thread_name.resize(15);
 				pthread_setname_np(pthread_self(), thread_name.c_str());
@@ -102,7 +102,10 @@ public:
 					GRPCFY_FATAL(logger, "Unexpected exception occurred: {}", exception.what());
 				}
 			};
-			boost::asio::post(thread_pool, std::move(worker));
+
+			for(auto count{0u}; count < options.getThreadsPerQueue(); ++count) {
+				boost::asio::post(thread_pool, worker);
+			}
 		}
 	}
 
@@ -259,12 +262,20 @@ private:
 
 		for(auto &[key, metadata] : singular_calls) {
 			(void)key;
-			metadata->makeCallHandler(environment.getLoggerCallback(), &async_service, queue);
+			
+			for(auto count{0u}; count < options.getHandlersPerQueue(); ++count)
+			{
+				metadata->makeCallHandler(environment.getLoggerCallback(), &async_service, queue);
+			}
 		}
 
 		for(auto &[key, metadata] : server_stream_calls) {
 			(void)key;
-			metadata->makeCallHandler(environment.getLoggerCallback(), &async_service, queue);
+			
+			for(auto count{0u}; count < options.getHandlersPerQueue(); ++count)
+			{
+				metadata->makeCallHandler(environment.getLoggerCallback(), &async_service, queue);
+			}
 		}
 	}
 

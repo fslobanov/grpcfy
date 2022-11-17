@@ -21,6 +21,8 @@ public:
 	explicit Options(std::string service_name) noexcept(false)
 	    : service_name{std::move(service_name)}
 	    , queue_count{1}
+	    , threads_per_queue{1}
+	    , handlers_per_thread{1}
 	{
 		if(Options::service_name.empty()) {
 			throw std::invalid_argument(
@@ -51,27 +53,50 @@ public:
 
 	Options &setQueueCount(std::size_t count) noexcept(false)
 	{
-		if(queue_count < 1) {
-			throw std::invalid_argument("zero queues");
-		}
+		return setNumber<std::size_t, 1, 1024>(queue_count, count);
+	}
 
-		if(queue_count > 1024) {
-			throw std::invalid_argument("are you serious?");
-		}
+	Options &setThreadsPerQueue(std::size_t count) noexcept(false)
+	{
+		return setNumber<std::size_t, 1, 1024>(threads_per_queue, count);
+	}
 
-		queue_count = count;
-		return *this;
+	Options &setHandlersPerThread(std::size_t count) noexcept(false)
+	{
+		return setNumber<std::size_t, 1, 1024>(handlers_per_thread, count);
 	}
 
 public:
 	[[nodiscard]] const std::string &getServiceName() const noexcept { return service_name; }
 	[[nodiscard]] const Endpoints &getEndpoints() const noexcept { return endpoints; }
-	[[nodiscard]] const std::size_t &getQueueCount() const noexcept { return queue_count; }
+
+	[[nodiscard]] std::size_t getQueueCount() const noexcept { return queue_count; }
+	[[nodiscard]] std::size_t getThreadsPerQueue() const noexcept { return threads_per_queue; }
+	[[nodiscard]] std::size_t getHandlersPerQueue() const noexcept { return handlers_per_thread; }
 
 private:
 	std::string service_name;
 	Endpoints endpoints;
+
 	std::size_t queue_count;
+	std::size_t threads_per_queue;
+	std::size_t handlers_per_thread;
+
+private:
+	template<typename Number, Number Min, Number Max>
+	Options &setNumber(Number &dst, Number src) noexcept(false)
+	{
+		if(src < Min) {
+			throw std::invalid_argument("zero queues");
+		}
+
+		if(src > Max) {
+			throw std::invalid_argument("are you serious?");
+		}
+
+		dst = src;
+		return *this;
+	}
 };
 
 /**
