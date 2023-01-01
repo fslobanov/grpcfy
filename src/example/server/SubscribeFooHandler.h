@@ -21,10 +21,10 @@ struct SubscribeFooHandler final
 	    , generator{random()}
 	    , distribution{0, 10}
 	{
-		const auto descriptor = grpcfy::core::findMethod(FooBar::service_full_name(), "SubscribeFoo");
+		const auto descriptor = grpcfy::core::find_method(FooBar::service_full_name(), "SubscribeFoo");
 		auto callback = [this](SubscribeFoo &&subscribe_foo) { handle(std::move(subscribe_foo)); };
-		engine.registerServerStreamMethod<FooStreamRequest, FooStreamNotification, kAcceptor>(descriptor,
-		                                                                                      std::move(callback));
+		engine.register_server_stream_method<FooStreamRequest, FooStreamNotification, kAcceptor>(descriptor,
+		                                                                                         std::move(callback));
 		startTimer(0ms);
 	}
 
@@ -32,8 +32,8 @@ struct SubscribeFooHandler final
 	{
 		fmt::print("[<--] ServerStream '{}' from '{}': {}\n",
 		           FooRequest::descriptor()->full_name(),
-		           subscribe_foo.getPeer().assume_value(),
-		           subscribe_foo.getRequest().assume_value()->ShortDebugString());
+		           subscribe_foo.get_peer().assume_value(),
+		           subscribe_foo.get_request().assume_value()->ShortDebugString());
 
 		boost::asio::post(ctx, [&, subscribe_foo = std::move(subscribe_foo)]() mutable noexcept {
 			streams.emplace_back(std::move(subscribe_foo));
@@ -61,7 +61,7 @@ struct SubscribeFooHandler final
 			auto &stream = *iterator;
 
 			if(!distribution(generator)) {
-				const auto peer = stream.getPeer();
+				const auto peer = stream.get_peer();
 				fmt::print("[--X] ServerStream '{}' to '{}'\n",
 				           FooResponse::descriptor()->full_name(),
 				           peer ? peer.value() : std::string{"..."});
@@ -77,7 +77,7 @@ struct SubscribeFooHandler final
 			FooStreamNotification notification;
 			notification.mutable_foo()->set_value(boost::uuids::to_string(boost::uuids::random_generator{}()));
 
-			const auto peer = stream.getPeer();
+			const auto peer = stream.get_peer();
 			fmt::print("[-->] ServerStream '{}' to '{}': {}\n",
 			           FooStreamNotification::descriptor()->full_name(),
 			           peer ? peer.value() : std::string{"..."},

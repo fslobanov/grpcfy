@@ -1,6 +1,6 @@
 #pragma once
 
-#include <grpcfy/client/CallContext.h>
+#include <grpcfy/client/detail/CallContext.h>
 #include <grpcfy/client/ServerStreamCall.h>
 
 namespace grpcfy::client {
@@ -46,9 +46,8 @@ public:
 	    , notification_buffer(std::nullopt)
 	    , callback(std::move(callback))
 	{
-		checkFlagsFit<ServerStreamContext>();
+		check_flags_fit<ServerStreamContext>();
 
-		//LOG(TRACE, "Ctor %", this);
 		assert(ServerStreamContext::client);
 		assert(ServerStreamContext::context);
 		assert(ServerStreamContext::reader);
@@ -56,44 +55,37 @@ public:
 		assert(ServerStreamContext::deadline.count() > 0);
 	}
 
-	[[nodiscard]] Type getType() const noexcept final { return Type::ServerStream; }
+	void run() noexcept final { reader->StartCall(tagify()); }
 
-	void run() noexcept final
+	Aliveness on_event(bool ok, ClientState client_state, Flags flags) noexcept final
 	{
-		//LOG(TRACE, "Run %", this);
-		reader->StartCall(tagify());
-	}
-
-	[[nodiscard]] Aliveness onEvent(bool ok, ClientState client_state, Flags flags) noexcept final
-	{
-		//LOG(TRACE, "Event %", this);
 		if(!ok) {
-			return onError(client_state);
+			return on_error(client_state);
 		}
 
 		switch(state) {
 			default: assert(false && "Unknown state case");
-			case State::Connecting: return onConnected();
+			case State::Connecting: return on_connected();
 			case State::Reading: {
 				assert(kReadFlags == flags);
-				return onRead();
+				return on_read();
 			}
-			case State::Finishing: return onFinished(client_state);
+			case State::Finishing: return on_finished(client_state);
 		}
 	};
 
-	[[nodiscard]] static std::shared_ptr<grpc::ClientContext> setup_context(std::shared_ptr<grpc::ClientContext> c,
-	                                                                        Duration d) noexcept
+	[[nodiscard]] static std::shared_ptr<grpc::ClientContext> setup_context(
+	    std::shared_ptr<grpc::ClientContext> &&context,
+	    Duration duration) noexcept
 	{
-		c->set_fail_fast(true);
-		//c->set_deadline(toGrpcTimespec(d));
-		(void)d;
-		return c;
+		context->set_fail_fast(true);
+		//context->set_deadline(to_grpc_timespec(d));
+		(void)duration;
+		return context;
 	}
 
-	[[nodiscard]] Aliveness onError(ClientState client_state) noexcept
+	Aliveness on_error(ClientState client_state) noexcept
 	{
-		//LOG(TRACE, "Error %", this);
 		state = State::Finishing;
 
 		if(ClientState::Running == client_state) {
@@ -105,25 +97,23 @@ public:
 		}
 	}
 
-	[[nodiscard]] Aliveness onConnected() noexcept
+	Aliveness on_connected() noexcept
 	{
-		//LOG(TRACE, "Connected %", this);
 		state = State::Reading;
 		notification_buffer = Notification{};
 		reader->Read(&*notification_buffer, tagify(kReadFlags));
 		return Aliveness::Alive;
 	}
 
-	[[nodiscard]] Aliveness onRead() noexcept
+	Aliveness on_read() noexcept
 	{
-		//LOG(TRACE, "Read %", this);
 		callback(std::move(*notification_buffer));
 		notification_buffer = Notification{};
 		reader->Read(&*notification_buffer, tagify(kReadFlags));
 		return Aliveness::Alive;
 	}
 
-	[[nodiscard]] Aliveness onFinished(ClientState client_state) noexcept
+	Aliveness on_finished(ClientState client_state) noexcept
 	{
 		const auto should_relaunch = ClientState::Running == client_state
 		                             && ServerStreamRelaunchPolicy::Relaunch == reconnect_policy
@@ -131,7 +121,7 @@ public:
 
 		if(!should_relaunch) {
 			callback({std::move(status)});
-			client->cleanupStream(session_id);
+			client->cleanup_stream(session_id);
 			return Aliveness::Dead;
 		}
 
@@ -144,7 +134,7 @@ public:
 		                                                        deadline,
 		                                                        reconnect_policy,
 		                                                        std::move(callback));
-		client->relaunchStream(std::move(self_clone));
+		client->relaunch_stream(std::move(self_clone));
 		return Aliveness::Dead;
 	}
 

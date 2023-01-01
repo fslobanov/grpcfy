@@ -26,7 +26,7 @@ using SessionId = std::string;
  */
 using Address = std::string;
 
-static inline gpr_timespec toGrpcTimespec(Duration duration) noexcept
+[[nodiscard]] static inline gpr_timespec to_grpc_timespec(Duration duration) noexcept
 {
 	const auto point = std::chrono::system_clock::now() + duration;
 	gpr_timespec spec;
@@ -42,7 +42,7 @@ static inline gpr_timespec toGrpcTimespec(Duration duration) noexcept
 	return gpr_timespec{seconds.count(), static_cast<NanosCount>(nanoseconds.count()), GPR_TIMESPAN};*/
 }
 
-enum class ClientState : bool
+enum class [[nodiscard]] ClientState : bool
 {
 	Running,
 	Standby

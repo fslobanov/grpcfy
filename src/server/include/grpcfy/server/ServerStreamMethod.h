@@ -32,7 +32,7 @@ public:
 	using Context = detail::ServerStreamMethodContext<AsyncService, InboundRequest, OutboundNotification, Acceptor>;
 	using ContextImplPtr = typename Context::ImplPtr;
 
-	enum class State : bool
+	enum class [[nodiscard]] State : bool
 	{
 		Running,
 		Finished
@@ -50,7 +50,7 @@ public:
 	 * @details Note, that method may be closed by remote or by userspace
 	 * @return State of method
 	 */
-	[[nodiscard]] State getState() const noexcept
+	[[nodiscard]] State get_state() const noexcept
 	{
 		return !weak_method_context.expired() ? State::Running : State::Finished;
 	}
@@ -60,10 +60,10 @@ public:
 	 * @brief Obtain remote address
 	 * @return Remote address, if method is Running yet
 	 */
-	[[nodiscard]] GetPeer getPeer() const noexcept
+	[[nodiscard]] GetPeer get_peer() const noexcept
 	{
 		if(const auto context = weak_method_context.lock()) {
-			return context->getPeer();
+			return context->get_peer();
 		}
 		return State::Finished;
 	}
@@ -73,10 +73,10 @@ public:
 	 * @brief Obtain request
 	 * @return Request, if method is Running yet
 	 */
-	[[nodiscard]] GetRequest getRequest() const noexcept
+	[[nodiscard]] GetRequest get_request() const noexcept
 	{
 		if(const auto context = weak_method_context.lock()) {
-			return &context->getRequest();
+			return &context->get_request();
 		}
 		return State::Finished;
 	}

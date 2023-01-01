@@ -11,11 +11,6 @@
 
 #include <boost/outcome.hpp>
 
-/*namespace grpc {
-template<typename Response>
-class ClientAsyncResponseReader;
-}*/
-
 namespace grpcfy::client {
 
 template<typename Response>

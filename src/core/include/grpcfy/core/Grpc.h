@@ -9,7 +9,7 @@ namespace grpcfy::core {
  * @brief Generate zero duration timestamp
  * @details Especially used to pass it to grpc::Alarm to switch execution context into CompletionQueue
  */
-[[nodiscard]] inline gpr_timespec rightNow() noexcept
+[[nodiscard]] inline gpr_timespec right_now() noexcept
 {
 	return gpr_now(gpr_clock_type::GPR_CLOCK_REALTIME);
 }
@@ -19,7 +19,7 @@ namespace grpcfy::core {
  * @param name Service to find, can be obtained from MyService::service_full_name() method
  * @return nullptr if Method not found
  */
-[[nodiscard]] inline const google::protobuf::ServiceDescriptor *findService(const std::string &name) noexcept
+[[nodiscard]] inline const google::protobuf::ServiceDescriptor *find_service(const std::string &name) noexcept
 {
 	const auto *descriptors_pool = google::protobuf::DescriptorPool::generated_pool();
 	assert(descriptors_pool);
@@ -32,7 +32,7 @@ namespace grpcfy::core {
  * @param service_descriptor Service to find into
  * @return nullptr if Service not found
  */
-[[nodiscard]] inline const google::protobuf::MethodDescriptor *findMethod(
+[[nodiscard]] inline const google::protobuf::MethodDescriptor *find_method(
     const std::string &method_name,
     const google::protobuf::ServiceDescriptor *service_descriptor)
 {
@@ -46,11 +46,11 @@ namespace grpcfy::core {
  * @param method_name Method to find
  * @return nullptr if Service or Method not found
  */
-[[nodiscard]] inline const google::protobuf::MethodDescriptor *findMethod(const std::string &service_name,
-                                                                          const std::string &method_name)
+[[nodiscard]] inline const google::protobuf::MethodDescriptor *find_method(const std::string &service_name,
+                                                                           const std::string &method_name)
 {
-	if(const auto service = findService(service_name)) {
-		return findMethod(method_name, service);
+	if(const auto service = find_service(service_name)) {
+		return find_method(method_name, service);
 	}
 	return nullptr;
 }
@@ -59,7 +59,7 @@ namespace grpcfy::core {
  * @brief Obtain list of Service known methods
  * @param service_descriptor Service to list
  */
-[[nodiscard]] inline std::vector<const google::protobuf::MethodDescriptor *> listMethods(
+[[nodiscard]] inline std::vector<const google::protobuf::MethodDescriptor *> list_methods(
     const google::protobuf::ServiceDescriptor *service_descriptor) noexcept
 {
 	std::vector<const google::protobuf::MethodDescriptor *> methods;

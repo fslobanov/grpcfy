@@ -44,7 +44,7 @@ public:
 	    , environment{std::move(environment)}
 	    , logger{service_engine_category, ServiceEngine::environment.getLoggerCallback()}
 	    , completion_queues{initialize(builder)}
-	    , thread_pool{options.getQueueCount() * options.getThreadsPerQueue()}
+	    , thread_pool{options.get_queue_count() * options.get_threads_per_queue()}
 	{
 	}
 
@@ -69,10 +69,10 @@ public:
 			throw std::runtime_error("null server, check your builder or address configuration");
 		}
 
-		GRPCFY_INFO(logger, "Running '{}' service on: {}", options.getServiceName(), [this]() {
+		GRPCFY_INFO(logger, "Running '{}' service on: {}", options.get_service_name(), [this]() {
 			std::string message;
 
-			for(const auto &[address, credentials] : options.getEndpoints()) {
+			for(const auto &[address, credentials] : options.get_endpoints()) {
 				(void)credentials;
 				message += fmt::format("{},", address);
 			}
@@ -91,7 +91,7 @@ public:
 			assert(queue);
 
 			const auto worker = [this, queue = queue.get()]() noexcept {
-				auto thread_name = options.getServiceName();
+				auto thread_name = options.get_service_name();
 				thread_name.resize(15);
 
 #ifdef __linux__
@@ -102,17 +102,17 @@ public:
 #error "not supported"
 #endif
 
-				setupQueue(queue);
+				setup_queue(queue);
 
 				try {
-					processQueue(queue);
+					process_queue(queue);
 				} catch(const std::exception &exception) {
 					//TODO lfs: handle, shutdown pool and notify for example
 					GRPCFY_FATAL(logger, "Unexpected exception occurred: {}", exception.what());
 				}
 			};
 
-			for(auto count{0u}; count < options.getThreadsPerQueue(); ++count) {
+			for(auto count{0u}; count < options.get_threads_per_queue(); ++count) {
 				boost::asio::post(thread_pool, worker);
 			}
 		}
@@ -133,13 +133,13 @@ public:
 	    //SingularMethodCallback<AsyncService, InboundRequest, OutboundResponse, Acceptor> &&user_callback) noexcept(false)
 	    SingularMethodAcceptorFn<AsyncService, InboundRequest, OutboundResponse> Acceptor,
 	    typename UserCallback>
-	void registerSingularMethod(MethodDescriptorPtr method_descriptor, UserCallback &&user_callback) noexcept(false)
+	void register_singular_method(MethodDescriptorPtr method_descriptor, UserCallback &&user_callback) noexcept(false)
 	{
-		checkMessageDerived<InboundRequest>();
-		checkMessageDerived<OutboundResponse>();
-		//checkNullArguments(method_descriptor, user_callback);
-		checkDescriptorsMatch<InboundRequest>(method_descriptor->input_type());
-		checkDescriptorsMatch<OutboundResponse>(method_descriptor->output_type());
+		check_message_derived<InboundRequest>();
+		check_message_derived<OutboundResponse>();
+		//check_null_arguments(method_descriptor, user_callback);
+		check_descriptors_match<InboundRequest>(method_descriptor->input_type());
+		check_descriptors_match<OutboundResponse>(method_descriptor->output_type());
 
 		auto metadata = std::make_unique<
 		    detail::SingularMethodMetadataImpl<AsyncService, InboundRequest, OutboundResponse, Acceptor, UserCallback>>(
@@ -154,7 +154,7 @@ public:
 
 		GRPCFY_INFO(logger,
 		            "Service '{}' method '{}' register succeed",
-		            options.getServiceName(),
+		            options.get_service_name(),
 		            method_descriptor->full_name());
 	}
 
@@ -170,16 +170,16 @@ public:
 	         typename OutboundNotification,
 	         ServerStreamAcceptorFn<AsyncService, InboundRequest, OutboundNotification> Acceptor,
 	         typename UserCallback>
-	void registerServerStreamMethod(
+	void register_server_stream_method(
 	    MethodDescriptorPtr method_descriptor,
 	    //ServerStreamMethodCallback<AsyncService, InboundRequest, OutboundNotification, Acceptor> &&on_request) noexcept(false)
 	    UserCallback &&user_callback)
 	{
-		checkMessageDerived<InboundRequest>();
-		checkMessageDerived<OutboundNotification>();
-		//checkNullArguments(method_descriptor, user_callback);
-		checkDescriptorsMatch<InboundRequest>(method_descriptor->input_type());
-		checkDescriptorsMatch<OutboundNotification>(method_descriptor->output_type());
+		check_message_derived<InboundRequest>();
+		check_message_derived<OutboundNotification>();
+		//check_null_arguments(method_descriptor, user_callback);
+		check_descriptors_match<InboundRequest>(method_descriptor->input_type());
+		check_descriptors_match<OutboundNotification>(method_descriptor->output_type());
 
 		auto metadata = std::make_unique<detail::ServerStreamMethodMetadataImpl<AsyncService,
 		                                                                        InboundRequest,
@@ -198,7 +198,7 @@ public:
 
 		GRPCFY_INFO(logger,
 		            "Service '{}' method '{}' register succeed",
-		            options.getServiceName(),
+		            options.get_service_name(),
 		            method_descriptor->full_name());
 	}
 
@@ -224,12 +224,12 @@ private:
 	{
 		builder.RegisterService(&async_service);
 
-		for(const auto &[address, credentials] : options.getEndpoints()) {
+		for(const auto &[address, credentials] : options.get_endpoints()) {
 			builder.AddListeningPort(address, credentials);
 		}
 
 		CompletionQueues queues;
-		queues.resize(options.getQueueCount());
+		queues.resize(options.get_queue_count());
 		std::generate(queues.begin(), queues.end(), [&builder]() { return builder.AddCompletionQueue(true); });
 
 		return queues;
@@ -237,13 +237,13 @@ private:
 
 private:
 	template<typename T>
-	constexpr static void checkMessageDerived() noexcept
+	constexpr static void check_message_derived() noexcept
 	{
 		static_assert(std::is_base_of_v<google::protobuf::Message, T>, "Should be derived from protobuf message");
 	}
 
 	template<typename Callback>
-	void checkNullArguments(MethodDescriptorPtr method_descriptor, const Callback &callback) const noexcept(false)
+	void check_null_arguments(MethodDescriptorPtr method_descriptor, const Callback &callback) const noexcept(false)
 	{
 		if(!method_descriptor) {
 			throw std::invalid_argument("null descriptor");
@@ -255,7 +255,7 @@ private:
 	}
 
 	template<typename T>
-	void checkDescriptorsMatch(const google::protobuf::Descriptor *descriptor) const noexcept(false)
+	void check_descriptors_match(const google::protobuf::Descriptor *descriptor) const noexcept(false)
 	{
 		//Should be same pointers, google::protobuf::Descriptor has no comparison operators
 		if(T::descriptor() != descriptor) {
@@ -265,14 +265,14 @@ private:
 	}
 
 private:
-	void setupQueue(grpc::ServerCompletionQueue *queue)
+	void setup_queue(grpc::ServerCompletionQueue *queue)
 	{
 		assert(!completion_queues.empty());
 
 		for(auto &[key, metadata] : singular_methods) {
 			(void)key;
 
-			for(auto count{0u}; count < options.getHandlersPerQueue(); ++count) {
+			for(auto count{0u}; count < options.get_handlers_per_queue(); ++count) {
 				metadata->spawn(environment.getLoggerCallback(), &async_service, queue);
 			}
 		}
@@ -280,13 +280,13 @@ private:
 		for(auto &[key, metadata] : server_stream_methods) {
 			(void)key;
 
-			for(auto count{0u}; count < options.getHandlersPerQueue(); ++count) {
+			for(auto count{0u}; count < options.get_handlers_per_queue(); ++count) {
 				metadata->spawn(environment.getLoggerCallback(), &async_service, queue);
 			}
 		}
 	}
 
-	void processQueue(grpc::ServerCompletionQueue *queue)
+	void process_queue(grpc::ServerCompletionQueue *queue)
 	{
 		using namespace detail;
 
@@ -300,7 +300,7 @@ private:
 
 			GRPCFY_DEBUG(logger, "Got tag - {}, flags - {:#02x}, ok - {}", fmt::ptr(context), flags, ok);
 
-			context->onEvent(ok, flags);
+			context->on_event(ok, flags);
 		}
 	};
 };

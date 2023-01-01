@@ -19,22 +19,22 @@ struct GetFooHandler final
 	    , counter{0}
 	{
 		// First, we need to obtain method descriptor from database - be vigilant, method should exist etc
-		const auto descriptor = grpcfy::core::findMethod(FooBar::service_full_name(), "GetFoo");
+		const auto descriptor = grpcfy::core::find_method(FooBar::service_full_name(), "GetFoo");
 		// Callback, which proceeds inbound calls, callback should satisfy Callable concept
 		// and accept only 1 argument - inbound call instance
 		// Note that you may use Callback alias described above, callback declared as template parameter
 		// to avoid std::function usage
 		auto callback = [this](GetFoo &&get_foo) noexcept { handle(std::move(get_foo)); };
 		// Simply register this callback as inbound call handler
-		engine.registerSingularMethod<FooRequest, FooResponse, kAcceptor>(descriptor, std::move(callback));
+		engine.register_singular_method<FooRequest, FooResponse, kAcceptor>(descriptor, std::move(callback));
 	}
 
 	void handle(GetFoo &&get_foo) noexcept
 	try {
 		fmt::print("[<--] Singular '{}' from '{}': {}\n",
 		           FooRequest::descriptor()->full_name(),
-		           get_foo.getPeer(),
-		           get_foo.getRequest().ShortDebugString());
+		           get_foo.get_peer(),
+		           get_foo.get_request().ShortDebugString());
 
 		// Transfer call event from Engine thread to App context
 		boost::asio::post(ctx, [&, get_foo = std::move(get_foo)]() mutable noexcept {
@@ -44,7 +44,7 @@ struct GetFooHandler final
 
 			fmt::print("[-->] Singular '{}' to '{}': {}\n",
 			           FooResponse::descriptor()->full_name(),
-			           get_foo.getPeer(),
+			           get_foo.get_peer(),
 			           response.ShortDebugString());
 
 			// No need to synchronize App response with Engine threads, call context covers that problem itself

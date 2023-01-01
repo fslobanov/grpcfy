@@ -11,9 +11,9 @@
 #include <grpcpp/grpcpp.h>
 
 #include <grpcfy/client/Options.h>
-#include <grpcfy/client/SingularCallContext.h>
-#include <grpcfy/client/ServerStreamEntry.h>
-#include <grpcfy/client/ServerStreamCallContext.h>
+#include <grpcfy/client/detail/SingularCallContext.h>
+#include <grpcfy/client/detail/ServerStreamEntry.h>
+#include <grpcfy/client/detail/ServerStreamCallContext.h>
 
 namespace grpc {
 class StubOptions;
@@ -38,9 +38,8 @@ using StubMakerFn = std::unique_ptr<Stub> (*)(const std::shared_ptr<grpc::Channe
  * @tparam StubMaker gRPC generated stub factory function
  */
 template<typename Stub, StubMakerFn<Stub> StubMaker>
-class ClientEngine final : public std::enable_shared_from_this<ClientEngine<Stub, StubMaker>>
+class ClientEngine final
 {
-public:
 public:
 	using Ptr = std::shared_ptr<ClientEngine>;
 
@@ -52,7 +51,10 @@ private:
 	{};
 
 public:
-	static Ptr make(Options &&options) { return std::make_shared<ClientEngine>(Tag{}, std::move(options)); };
+	[[nodiscard]] static Ptr make(Options &&options)
+	{
+		return std::make_shared<ClientEngine>(Tag{}, std::move(options));
+	};
 
 	/**
 	 * @brief Ctor
@@ -61,31 +63,29 @@ public:
 	 * @param options Default client options
 	 */
 	explicit ClientEngine(Tag tag, Options &&options) noexcept
-	    : options(std::move(options))
-	    , channel(grpc::CreateCustomChannel(ClientEngine::options.getAddress(),
-	                                        ClientEngine::options.getCredentials(),
-	                                        asArguments(ClientEngine::options)))
-	    , stub(StubMaker(channel, grpc::StubOptions{}))
-	    , strand(runtime_context)
-	    , state(ClientState::Standby)
-	    , thread_pool(2)
+	    : options{std::move(options)}
+	    , channel{grpc::CreateCustomChannel(ClientEngine::options.get_address(),
+	                                        ClientEngine::options.get_credentials(),
+	                                        as_arguments(ClientEngine::options))}
+	    , stub{StubMaker(channel, grpc::StubOptions{})}
+	    , strand{runtime_context}
+	    , state{ClientState::Standby}
+	    , thread_pool{2}
 	{
 		(void)tag;
 
-		boost::asio::post(thread_pool, [this]() noexcept {
+		auto run = [this]() noexcept {
 			try {
 				const auto work_guard = boost::asio::make_work_guard(runtime_context);
 				runtime_context.run();
 			} catch(const std::exception &exception) {
-				//LOG(FATAL, "Unexpected exception occurred, terminating: %", exception.what());
 				std::terminate();
 				//TODO lfs: handle
 			} catch(...) {
-				//LOG(FATAL, "Unexpected error occurred, terminating");
 				std::terminate();
-				//TODO lfs: handle
 			}
-		});
+		};
+		boost::asio::post(thread_pool, std::move(run));
 	}
 
 	/*
@@ -96,14 +96,16 @@ public:
 	{
 		std::promise<ClientState> promise;
 		auto future = promise.get_future();
-		boost::asio::post(strand, [this, promise = std::move(promise)]() mutable noexcept {
+
+		auto shutdown = [this, promise = std::move(promise)]() mutable noexcept {
 			state = ClientState::Standby;
 			for(auto &[_, entry] : server_stream_contexts) {
 				(void)_;
 				entry.cancel();
 			}
 			promise.set_value(state);
-		});
+		};
+		boost::asio::post(strand, std::move(shutdown));
 
 		const auto standby = future.get();
 		(void)standby;
@@ -118,7 +120,13 @@ public:
 	/**
 	 * @brief Obtain current client state
 	 */
-	ClientState getState() const noexcept { return state; }
+	ClientState get_state() const noexcept
+	{
+		std::promise<ClientState> promise;
+		auto future = promise.get_future();
+		auto get = [this, promise = std::move(promise)]() mutable { promise.set_value(state); };
+		return future.get();
+	}
 
 	/**
 	 * @brief Runs internal CompletionQueue processing loop, allows API executions
@@ -129,18 +137,17 @@ public:
 		std::promise<ClientState> promise;
 		auto future = promise.get_future();
 
-		boost::asio::post(
-		    strand, [weak = ClientEngine::weak_from_this(), promise = std::move(promise)]() mutable noexcept {
-			    auto self = weak.lock();
-			    if(!self || ClientState::Running == self->state) {
-				    return;
-			    }
+		auto do_run = [this, promise = std::move(promise)]() mutable noexcept {
+			if(is_running()) {
+				return;
+			}
 
-			    self->state = ClientState::Running;
-			    //WARN: raw pointer passed, so thread does not hold shared_this, but we own pool, so it's safe
-			    boost::asio::post(self->thread_pool, [self = self.get()]() mutable noexcept { self->processEvents(); });
-			    promise.set_value(self->state);
-		    });
+			state = ClientState::Running;
+			boost::asio::post(thread_pool, [this]() mutable noexcept { process_events(); });
+			promise.set_value(state);
+		};
+
+		boost::asio::post(strand, std::move(do_run));
 
 		const auto running = future.get();
 		(void)running;
@@ -154,16 +161,12 @@ public:
 	 * @param call Call to be executed
 	 */
 	template<typename Call>
-	void executeSingularCall(Call &&call) noexcept
+	void execute_singular_call(Call &&call) noexcept
 	{
-		auto launch = [weak = ClientEngine::weak_from_this(), call = std::forward<Call>(call)]() mutable noexcept {
-			const auto self = weak.lock();
-			if(!self || ClientState::Running != self->state) {
-				return;
-			}
-			self->doSingularCall(std::move(call));
+		auto execute = [this, call = std::forward<Call>(call)]() mutable noexcept {
+			do_execute_singular_call(std::move(call));
 		};
-		boost::asio::post(strand, std::move(launch));
+		boost::asio::post(strand, std::move(execute));
 	}
 
 	/**
@@ -173,14 +176,10 @@ public:
 	 * @param call  Call to be executed
 	 */
 	template<typename Call>
-	void launchServerStream(Call &&call) noexcept
+	void launch_server_stream(Call &&call) noexcept
 	{
-		auto launch = [weak = ClientEngine::weak_from_this(), call = std::forward<Call>(call)]() mutable noexcept {
-			const auto self = weak.lock();
-			if(!self || ClientState::Running != self->state) {
-				return;
-			}
-			self->doLaunchServerStream(std::move(call));
+		auto launch = [this, call = std::forward<Call>(call)]() mutable noexcept {
+			do_launch_server_stream(std::move(call));
 		};
 		boost::asio::post(strand, std::move(launch));
 	}
@@ -190,19 +189,15 @@ public:
 	 * @details Posts event to internal loop
 	 * @param shutdown Stream identifier to be downed
 	 */
-	void shutdownServerStream(ServerStreamShutdown &&shutdown) noexcept
+	void shutdown_server_stream(ServerStreamShutdown &&shutdown) noexcept
 	{
-		boost::asio::post(strand,
-		                  [weak = ClientEngine::weak_from_this(), shutdown = std::move(shutdown)]() mutable noexcept {
-			                  const auto self = weak.lock();
-			                  if(!self || ClientState::Running != self->state) {
-				                  return;
-			                  }
-			                  self->doShutdownServerStream(std::move(shutdown));
-		                  });
+		auto do_shutdown = [this, shutdown = std::move(shutdown)]() mutable noexcept {
+			do_shutdown_server_stream(std::move(shutdown));
+		};
+		boost::asio::post(strand, std::move(do_shutdown));
 	}
 
-public:
+private:
 	const Options options;
 
 	const std::shared_ptr<grpc::Channel> channel;
@@ -219,26 +214,34 @@ public:
 	ServerStreamContexts server_stream_contexts;
 
 private:
+	[[nodiscard]] bool is_running() const noexcept { return ClientState::Running == state; }
+
 	/**
 	 * @brief gRPC CompletionQueue processing loop
 	 */
-	void processEvents() noexcept
+	void process_events() noexcept
 	{
 		void *tag{nullptr};
 		bool ok{false};
+
 		while(queue.Next(&tag, &ok)) {
 			const auto memory_address = reinterpret_cast<CallContext::Pointer>(tag);
 			const auto flags = memory_address & CallContext::kFlagsMask;
-			const auto call_context = reinterpret_cast<CallContext *>(memory_address & ~CallContext::kFlagsMask);
+			const auto raw_context = reinterpret_cast<CallContext *>(memory_address & ~CallContext::kFlagsMask);
 
-			auto dispatch =
-			    [this, ok, flags, call_context = std::unique_ptr<CallContext>(call_context)]() mutable noexcept {
-				    if(CallContext::Aliveness::Dead == call_context->onEvent(ok, state, flags)) {
-					    call_context.reset(nullptr);
-				    } else {
-					    (void)call_context.release();
-				    }
-			    };
+			auto call_context = std::unique_ptr<CallContext>(raw_context);
+
+			auto dispatch = [this, ok, flags, call_context = std::move(call_context)]() mutable noexcept {
+				const auto dead = CallContext::Aliveness::Dead == call_context->on_event(ok, state, flags);
+				if(dead) {
+					// It is dead, so we can destroy it
+					call_context.reset(nullptr);
+				} else {
+					// Still alive, so we simply continue event processing its events
+					(void)call_context.release();
+				}
+			};
+
 			boost::asio::post(strand, std::move(dispatch));
 		}
 	}
@@ -248,22 +251,31 @@ private:
 	friend class grpcfy::client::ServerStreamContext;
 
 	template<typename Call>
-	void doSingularCall(Call &&call)
+	void do_execute_singular_call(Call &&call)
 	{
+		if(!is_running())
+		{
+			return;
+		}
+
 		auto call_context = std::make_unique<SingularCallContext<Call>>(
 		    queue,
 		    *stub,
 		    std::move(call.request),
-		    call.deadline ? *call.deadline : options.getSingularCallDeadline(),
+		    call.deadline ? *call.deadline : options.get_singular_call_deadline(),
 		    std::move(call.callback));
 
 		call_context.release()->run();
 	}
 
 	template<typename Call>
-	void doLaunchServerStream(Call &&call)
+	void do_launch_server_stream(Call &&call)
 	{
 		assert(!call.session_id.empty());
+		if(!is_running())
+		{
+			return;
+		}
 
 		const std::type_index &type_index{typeid(typename Call::Request)};
 
@@ -276,14 +288,14 @@ private:
 		                [&type_index](const auto &pair) noexcept { return pair.second.type_index == type_index; });
 		if(type_already_exists) {
 			assert(false && "Duplicated stream type");
-			//TODO lfs: notify via callback, asio::post cb
+			//TODO lfs: notify via callback maybe?
 			return;
 		}
 
 		const auto iterator = server_stream_contexts.lower_bound(call.session_id);
 		if(iterator != server_stream_contexts.end() && iterator->first == call.session_id) {
 			assert(false && "Duplicated stream id");
-			//TODO lfs: notify via callback, asio::post cb
+			//TODO lfs: notify via callback maybe?
 			return;
 		}
 
@@ -299,7 +311,7 @@ private:
 		        call.session_id,
 		        grpc_context,
 		        strand,
-		        (call.reconnect_interval ? *call.reconnect_interval : options.getServerStreamRelaunchInterval())));
+		        (call.reconnect_interval ? *call.reconnect_interval : options.get_server_stream_relaunch_interval())));
 
 		auto stream = std::make_unique<ServerStreamContext<Call, ClientEngine>>(
 		    this,
@@ -308,21 +320,26 @@ private:
 		    std::move(grpc_context),
 		    std::move(call.request),
 		    std::move(call.session_id),
-		    call.deadline ? *call.deadline : options.getServerStreamDeadline(),
-		    call.reconnect_policy ? *call.reconnect_policy : options.getServerStreamRelaunchPolicy(),
+		    call.deadline ? *call.deadline : options.get_server_stream_deadline(),
+		    call.reconnect_policy ? *call.reconnect_policy : options.get_server_stream_relaunch_policy(),
 		    std::move(call.callback));
 
 		stream.release()->run();
 	}
 
-	void doShutdownServerStream(ServerStreamShutdown &&shutdown) noexcept
+	void do_shutdown_server_stream(ServerStreamShutdown &&shutdown) noexcept
 	{
 		assert(!shutdown.session_id.empty());
+		if(!is_running())
+		{
+			return;
+		}
 
 		const auto iterator = server_stream_contexts.find(shutdown.session_id);
 		if(server_stream_contexts.end() == iterator) {
 			return;
 		}
+
 		auto &[_, entry] = *iterator;
 		(void)_;
 		entry.cancel();
@@ -330,7 +347,7 @@ private:
 	}
 
 	template<typename StreamContext>
-	void relaunchStream(std::unique_ptr<StreamContext> &&stream_context) noexcept
+	void relaunch_stream(std::unique_ptr<StreamContext> &&stream_context) noexcept
 	{
 		auto try_relaunch = [this, stream_context = std::move(stream_context)]() mutable noexcept {
 			const auto iterator = server_stream_contexts.find(stream_context->session_id);
@@ -346,13 +363,13 @@ private:
 
 			auto &[_, entry] = *iterator;
 			(void)_;
-			entry.scheduleReconnect(std::move(stream_context));
+			entry.schedule_reconnect(std::move(stream_context));
 		};
 
 		boost::asio::post(strand, std::move(try_relaunch));
 	}
 
-	void cleanupStream(const SessionId &session_id) noexcept
+	void cleanup_stream(const SessionId &session_id) noexcept
 	{
 		auto try_unregister = [this, session_id = session_id]() mutable noexcept {
 			const auto iterator = server_stream_contexts.find(session_id);
@@ -365,7 +382,7 @@ private:
 		boost::asio::post(strand, std::move(try_unregister));
 	}
 
-	static grpc::ChannelArguments asArguments(const Options &options) noexcept
+	[[nodiscard]] static grpc::ChannelArguments as_arguments(const Options &options) noexcept
 	{
 		//https://nanxiao.me/en/message-length-setting-in-grpc/
 		constexpr static auto kUnlimitedSize = -1;
@@ -374,8 +391,8 @@ private:
 
 		grpc::ChannelArguments arguments;
 
-		arguments.SetInt(kRequestSizeLimitKey, options.getRequestSizeLimitBytes().value_or(kUnlimitedSize));
-		arguments.SetInt(kResponseSizeLimitKey, options.getResponseSizeLimitBytes().value_or(kUnlimitedSize));
+		arguments.SetInt(kRequestSizeLimitKey, options.get_request_size_limit_bytes().value_or(kUnlimitedSize));
+		arguments.SetInt(kResponseSizeLimitKey, options.get_response_size_limit_bytes().value_or(kUnlimitedSize));
 
 		return arguments;
 	}

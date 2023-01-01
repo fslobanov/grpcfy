@@ -20,7 +20,7 @@ struct SingularMethodMetadata
 };
 
 template<typename Self, typename Context, typename Method>
-void singularMethodMetadataImplCallback(Context *__restrict__ ctx, void *__restrict__ ptr)
+void singular_method_metadata_impl_callback(Context *__restrict__ ctx, void *__restrict__ ptr)
 {
 	// We assume that Self if is SingularMethodMetadataImpl
 	const auto self = reinterpret_cast<Self *>(ptr);
@@ -48,7 +48,7 @@ struct SingularMethodMetadataImpl final : public SingularMethodMetadata<AsyncSer
 	                                    UserCallback &&user_callback)
 	    : method_descriptor{method_descriptor}
 	    , user_callback{std::forward<UserCallback>(user_callback)}
-	    , inbound_request_callback{singularMethodMetadataImplCallback<Self, Context, Method>, this}
+	    , inbound_request_callback{singular_method_metadata_impl_callback<Self, Context, Method>, this}
 	{
 		assert(SingularMethodMetadataImpl::method_descriptor);
 		//assert(SingularMethodMetadataImpl::user_callback);
@@ -58,9 +58,8 @@ struct SingularMethodMetadataImpl final : public SingularMethodMetadata<AsyncSer
 	           AsyncService *async_service,
 	           grpc::ServerCompletionQueue *completion_queue) final
 	{
-		auto context =
-		    new Context(method_descriptor, logger_callback, async_service, completion_queue, &inbound_request_callback);
-		context->run();
+		(new Context(method_descriptor, logger_callback, async_service, completion_queue, &inbound_request_callback))
+		    ->run();
 	}
 
 	const google::protobuf::MethodDescriptor *const method_descriptor;

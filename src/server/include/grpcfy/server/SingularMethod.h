@@ -43,15 +43,15 @@ public:
 	/**
 	 * @brief Obtain remote address
 	 */
-	[[nodiscard]] std::string getPeer() const { return method_context->getPeer(); }
+	[[nodiscard]] std::string get_peer() const { return method_context->get_peer(); }
 	/**
 	 * @brief Obtain request
 	 */
-	[[nodiscard]] const InboundRequest &getRequest() const noexcept { return method_context->getRequest(); }
+	[[nodiscard]] const InboundRequest &get_request() const noexcept { return method_context->get_request(); }
 	/**
 	 * @brief Release request
 	 */
-	[[nodiscard]] InboundRequest &&releaseRequest() noexcept { return method_context->releaseRequest(); }
+	[[nodiscard]] InboundRequest &&release_request() noexcept { return method_context->release_request(); }
 
 public:
 	/**

@@ -25,7 +25,7 @@ public:
 	 * @param ok Status got from grpc::CompletionQueue::Next
 	 * @param flags Flags attached via pointer tagging
 	 */
-	virtual void onEvent(bool ok, Flags flags) noexcept = 0;
+	virtual void on_event(bool ok, Flags flags) noexcept = 0;
 
 protected:
 	/**

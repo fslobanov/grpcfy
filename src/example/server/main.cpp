@@ -14,7 +14,7 @@ signed main(signed, char **)
 
 	grpc::EnableDefaultHealthCheckService(true);
 
-	for(const auto &method : grpcfy::core::listMethods(grpcfy::core::findService(FooBar::service_full_name()))) {
+	for(const auto &method : grpcfy::core::list_methods(grpcfy::core::find_service(FooBar::service_full_name()))) {
 		fmt::print("Service '{}' has '{}' method, which input is '{}' and output is '{}': {}",
 		           method->service()->full_name(),
 		           method->full_name(),
@@ -25,10 +25,10 @@ signed main(signed, char **)
 
 	grpc::ServerBuilder server_builder;
 	grpcfy::server::Options options{FooBar::service_full_name()};
-	options.addEndpoint("127.0.0.1:50505", grpc::InsecureServerCredentials())
-	    .setQueueCount(2)
-	    .setThreadsPerQueue(2)
-	    .setHandlersPerThread(2);
+	options.add_endpoint("127.0.0.1:50505", grpc::InsecureServerCredentials())
+	    .set_queue_count(2)
+	    .set_threads_per_queue(2)
+	    .set_handlers_per_thread(2);
 
 	grpcfy::server::Environment environment{[&](grpcfy::core::LogMessage &&message) {
 		boost::asio::post(io_context, [message = std::move(message)]() { print(message); });

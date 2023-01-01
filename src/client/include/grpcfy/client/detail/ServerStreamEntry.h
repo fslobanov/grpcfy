@@ -22,19 +22,13 @@ struct ServerStreamEntry final
 	                  Duration reconnect_interval) noexcept
 	    : type_index(type_index)
 	    , session_id(std::move(session_id))
+	    , reconnect_interval(reconnect_interval)
 	    , context(std::move(context))
 	    , reconnect_timer(strand)
-	    , reconnect_interval(reconnect_interval)
 	{
 	}
 
 	~ServerStreamEntry() { cancel(); }
-
-	const std::type_index type_index;
-	const SessionId session_id;
-	std::shared_ptr<grpc::ClientContext> context;
-	boost::asio::steady_timer reconnect_timer;
-	const Duration reconnect_interval;
 
 	void cancel() noexcept
 	{
@@ -43,7 +37,7 @@ struct ServerStreamEntry final
 	}
 
 	template<typename StreamContext>
-	void scheduleReconnect(std::unique_ptr<StreamContext> stream_context) noexcept
+	void schedule_reconnect(std::unique_ptr<StreamContext> stream_context) noexcept
 	{
 		context = stream_context->context;
 		reconnect_timer.expires_after(reconnect_interval);
@@ -55,6 +49,14 @@ struct ServerStreamEntry final
 			    stream_context.release()->run();
 		    });
 	}
+
+public:
+	const std::type_index type_index;
+	const SessionId session_id;
+	const Duration reconnect_interval;
+
+	std::shared_ptr<grpc::ClientContext> context;
+	boost::asio::steady_timer reconnect_timer;
 };
 
 }  // namespace grpcfy::client

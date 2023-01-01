@@ -22,7 +22,7 @@ struct ServerStreamMethodMetadata
 };
 
 template<typename Self, typename Context, typename Method>
-void serverStreamMethodMetadataImplCallback(Context *__restrict__ ctx, void *__restrict__ ptr)
+void server_stream_method_metadata_callback(Context *__restrict__ ctx, void *__restrict__ ptr)
 {
 	// We assume that Self if is ServerStreamMethodMetadataImpl
 	const auto self = reinterpret_cast<Self *>(ptr);
@@ -50,7 +50,7 @@ struct ServerStreamMethodMetadataImpl final : public ServerStreamMethodMetadata<
 	                                        UserCallback user_callback)
 	    : method_descriptor{method_descriptor}
 	    , user_callback{std::forward<UserCallback>(user_callback)}
-	    , inbound_request_callback{serverStreamMethodMetadataImplCallback<Self, Context, Method>, this}
+	    , inbound_request_callback{server_stream_method_metadata_callback<Self, Context, Method>, this}
 	{
 		assert(ServerStreamMethodMetadataImpl::method_descriptor);
 		//assert(ServerStreamMethodMetadataImpl::user_provided_callback);
@@ -60,9 +60,8 @@ struct ServerStreamMethodMetadataImpl final : public ServerStreamMethodMetadata<
 	           AsyncService *async_service,
 	           grpc::ServerCompletionQueue *completion_queue) final
 	{
-		auto context =
-		    new Context(method_descriptor, logger_callback, async_service, completion_queue, &inbound_request_callback);
-		context->run();
+		(new Context(method_descriptor, logger_callback, async_service, completion_queue, &inbound_request_callback))
+		    ->run();
 	}
 
 	const google::protobuf::MethodDescriptor *const method_descriptor;

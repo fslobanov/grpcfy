@@ -1,6 +1,6 @@
 #pragma once
 
-#include <grpcfy/client/CallContext.h>
+#include <grpcfy/client/detail/CallContext.h>
 #include <grpcfy/client/SingularCall.h>
 
 namespace grpcfy::client {
@@ -30,7 +30,7 @@ public:
 	    , context(setup_context(deadline))
 	    , reader((stub.*Call::MakeReaderFn)(&*context, SingularCallContext::request, &queue))
 	{
-		checkFlagsFit<SingularCallContext>();
+		check_flags_fit<SingularCallContext>();
 
 		assert(SingularCallContext::reader);
 		assert(SingularCallContext::context);
@@ -38,15 +38,13 @@ public:
 	}
 
 public:
-	[[nodiscard]] Type getType() const noexcept final { return Type::SingularCall; }
-
 	void run() noexcept final
 	{
 		reader->StartCall();
 		reader->Finish(&response, &status, tagify());
 	}
 
-	Aliveness onEvent(bool ok, ClientState client_state, Flags flags) noexcept final
+	Aliveness on_event(bool ok, ClientState client_state, Flags flags) noexcept final
 	{
 		(void)client_state;
 		(void)flags;
@@ -56,12 +54,12 @@ public:
 		return Aliveness::Dead;
 	}
 
-	[[nodiscard]] static std::unique_ptr<grpc::ClientContext> setup_context(Duration d) noexcept
+	[[nodiscard]] static std::unique_ptr<grpc::ClientContext> setup_context(Duration duration) noexcept
 	{
-		auto c = std::make_unique<grpc::ClientContext>();
-		c->set_fail_fast(true);
-		c->set_deadline(toGrpcTimespec(d));
-		return c;
+		auto context = std::make_unique<grpc::ClientContext>();
+		context->set_fail_fast(true);
+		context->set_deadline(to_grpc_timespec(duration));
+		return context;
 	}
 
 private:

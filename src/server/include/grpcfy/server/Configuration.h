@@ -12,7 +12,7 @@ namespace grpcfy::server {
  * @brief ServiceEngine options
  * @details Contains addresses bind to and other engine configuration parameters
  */
-class Options final
+class [[nodiscard]] Options final
 {
 public:
 	using Endpoints = std::map<std::string, std::shared_ptr<grpc::ServerCredentials>>;
@@ -31,8 +31,8 @@ public:
 	}
 
 public:
-	Options &addEndpoint(const std::string &address,
-	                     std::shared_ptr<grpc::ServerCredentials> credentials) noexcept(false)
+	Options &add_endpoint(const std::string &address,
+	                      std::shared_ptr<grpc::ServerCredentials> credentials) noexcept(false)
 	{
 		if(address.empty()) {
 			throw std::invalid_argument("empty address");
@@ -51,28 +51,28 @@ public:
 		return *this;
 	}
 
-	Options &setQueueCount(std::size_t count) noexcept(false)
+	Options &set_queue_count(std::size_t count) noexcept(false)
 	{
-		return setNumber<std::size_t, 1, 1024>(queue_count, count);
+		return set_number<std::size_t, 1, 1024>(queue_count, count);
 	}
 
-	Options &setThreadsPerQueue(std::size_t count) noexcept(false)
+	Options &set_threads_per_queue(std::size_t count) noexcept(false)
 	{
-		return setNumber<std::size_t, 1, 1024>(threads_per_queue, count);
+		return set_number<std::size_t, 1, 1024>(threads_per_queue, count);
 	}
 
-	Options &setHandlersPerThread(std::size_t count) noexcept(false)
+	Options &set_handlers_per_thread(std::size_t count) noexcept(false)
 	{
-		return setNumber<std::size_t, 1, 1024>(handlers_per_thread, count);
+		return set_number<std::size_t, 1, 1024>(handlers_per_thread, count);
 	}
 
 public:
-	[[nodiscard]] const std::string &getServiceName() const noexcept { return service_name; }
-	[[nodiscard]] const Endpoints &getEndpoints() const noexcept { return endpoints; }
+	[[nodiscard]] const std::string &get_service_name() const noexcept { return service_name; }
+	[[nodiscard]] const Endpoints &get_endpoints() const noexcept { return endpoints; }
 
-	[[nodiscard]] std::size_t getQueueCount() const noexcept { return queue_count; }
-	[[nodiscard]] std::size_t getThreadsPerQueue() const noexcept { return threads_per_queue; }
-	[[nodiscard]] std::size_t getHandlersPerQueue() const noexcept { return handlers_per_thread; }
+	[[nodiscard]] std::size_t get_queue_count() const noexcept { return queue_count; }
+	[[nodiscard]] std::size_t get_threads_per_queue() const noexcept { return threads_per_queue; }
+	[[nodiscard]] std::size_t get_handlers_per_queue() const noexcept { return handlers_per_thread; }
 
 private:
 	std::string service_name;
@@ -84,7 +84,7 @@ private:
 
 private:
 	template<typename Number, Number Min, Number Max>
-	Options &setNumber(Number &dst, Number src) noexcept(false)
+	Options &set_number(Number &dst, Number src) noexcept(false)
 	{
 		if(src < Min) {
 			throw std::invalid_argument("zero queues");

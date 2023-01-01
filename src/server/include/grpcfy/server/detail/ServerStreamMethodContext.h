@@ -83,11 +83,11 @@ public:
 	                                  completion_queue,
 	                                  inbound_request_callback)}
 	{
-		checkFlagsFit<Self>();
-		GRPCFY_DEBUG(impl->getLogger(), "{} constructed", impl->identity());
+		check_flags_fit<Self>();
+		GRPCFY_DEBUG(impl->get_logger(), "{} constructed", impl->identity());
 	}
 
-	~ServerStreamMethodContext() final { GRPCFY_DEBUG(impl->getLogger(), "{} destructed", impl->identity()); }
+	~ServerStreamMethodContext() final { GRPCFY_DEBUG(impl->get_logger(), "{} destructed", impl->identity()); }
 
 public:
 	/**
@@ -99,7 +99,7 @@ public:
 	 * @param ok Success of event
 	 * @param flags Pointer tags
 	 */
-	void onEvent(bool ok, Flags flags) noexcept final { impl->onEvent(ok, flags); }
+	void on_event(bool ok, Flags flags) noexcept final { impl->on_event(ok, flags); }
 	/**
 	 * @brief Obtain internal implementation weak reference, to share it with userspace
 	 */
@@ -159,13 +159,13 @@ public:
 		}
 
 	public:
-		[[nodiscard]] std::string getPeer() const { return server_context.peer(); }
-		[[nodiscard]] const InboundRequest &getRequest() const noexcept { return inbound_request; }
+		[[nodiscard]] std::string get_peer() const { return server_context.peer(); }
+		[[nodiscard]] const InboundRequest &get_request() const noexcept { return inbound_request; }
 
 		void post(NotificationOneOf &&notification)
 		{
 			const std::scoped_lock lock{mutex};
-			GRPCFY_DEBUG(logger, "{} userspace posts, state - {}", identity(), toString(state));
+			GRPCFY_DEBUG(logger, "{} userspace posts, state - {}", identity(), to_string(state));
 
 			if(drop_notifications) {
 				GRPCFY_DEBUG(logger, "{} dropped", identity());
@@ -198,7 +198,7 @@ public:
 					state = State::AwaitingAlarm;
 					++alarm_count;
 					notifications_queue.push(std::move(notification));
-					notification_alarm.Set(completion_queue, core::rightNow(), context->tagify());
+					notification_alarm.Set(completion_queue, core::right_now(), context->tagify());
 				} break;
 
 				case State::Cancelled: {
@@ -236,7 +236,7 @@ public:
 			    "{}[method:{},impl:{}]", method_descriptor->full_name(), fmt::ptr(context), fmt::ptr(this));
 		}
 
-		const core::Logger &getLogger() const noexcept { return logger; }
+		const core::Logger &get_logger() const noexcept { return logger; }
 
 		void run()
 		{
@@ -253,13 +253,13 @@ public:
 			            context->tagify());
 		}
 
-		void onEvent(bool ok, Flags flags) noexcept
+		void on_event(bool ok, Flags flags) noexcept
 		{
 			const std::scoped_lock lock{mutex};
 			GRPCFY_DEBUG(logger,
 			             "{} got event, state - {}, ok - {}, flags - {:#02x}, queue - {}, alarms - {}",
 			             identity(),
-			             toString(state),
+			             to_string(state),
 			             ok,
 			             flags.to_ulong(),
 			             notifications_queue.size(),
@@ -290,16 +290,16 @@ public:
 					assert(false && "illegal state");
 				} break;
 
-				case State::AwaitingRequest: onRequest(flags); break;
-				case State::AwaitingAlarm: onAlarm(flags); break;
-				case State::AwaitingWrite: onWrite(flags); break;
-				case State::AwaitingFinish: onFinished(flags); break;
-				case State::Cancelled: onCancelled(flags); break;
+				case State::AwaitingRequest: on_request(flags); break;
+				case State::AwaitingAlarm: on_alarm(flags); break;
+				case State::AwaitingWrite: on_write(flags); break;
+				case State::AwaitingFinish: on_finished(flags); break;
+				case State::Cancelled: on_cancelled(flags); break;
 			}
 		}
 
 	private:
-		void onRequest(Flags)
+		void on_request(Flags)
 		{
 			GRPCFY_DEBUG(logger, "{} notifying userspace", identity());
 			(new Self(method_descriptor, logger.getCallback(), service, completion_queue, inbound_request_callback))
@@ -308,28 +308,28 @@ public:
 			inbound_request_callback->notify(context);
 		}
 
-		void onAlarm(Flags)
+		void on_alarm(Flags)
 		{
 			assert(!notifications_queue.empty());
 			assert(alarm_count >= 1);
 
 			--alarm_count;
-			processPendingNotification();
+			process_pending_notifications();
 		}
 
-		void onWrite(Flags)
+		void on_write(Flags)
 		{
 			if(notifications_queue.empty()) {
 				GRPCFY_DEBUG(logger, "{} awaiting notification", identity());
 				state = State::AwaitingNotifications;
 				return;
 			}
-			processPendingNotification();
+			process_pending_notifications();
 		}
 
-		void onCancelled(Flags)
+		void on_cancelled(Flags)
 		{
-			//This is last pending alarm, we can destroy itself
+			//This is last pending alarm, we can destroy ourselves
 			if(alarm_count <= 1) {
 				GRPCFY_DEBUG(logger, "{} destroying on cancel", identity());
 				context->suicide();
@@ -342,7 +342,7 @@ public:
 			GRPCFY_DEBUG(logger, "{} draining pending alarm on cancel, alarms - {}", identity(), alarm_count);
 		}
 
-		void onFinished(Flags flags)
+		void on_finished(Flags flags)
 		{
 			if(static_cast<Pointer>(Tag::AsyncNotifyWhenDone) == flags.to_ullong()) {
 				GRPCFY_DEBUG(logger,
@@ -362,7 +362,7 @@ public:
 			context->suicide();
 		}
 
-		void processPendingNotification()
+		void process_pending_notifications()
 		{
 			assert(!notifications_queue.empty());
 
@@ -392,7 +392,7 @@ private:
 	const std::shared_ptr<Impl> impl;
 
 private:
-	static constexpr std::string_view toString(State state) noexcept
+	static constexpr std::string_view to_string(State state) noexcept
 	{
 		switch(state) {
 			default: return "Unknown";

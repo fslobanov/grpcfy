@@ -109,7 +109,7 @@ public:
 	    , state{State::StandingBy}
 	    , inbound_request_callback{inbound_request_callback}
 	{
-		checkFlagsFit<Self>();
+		check_flags_fit<Self>();
 
 		assert(service);
 		assert(completion_queue);
@@ -146,12 +146,12 @@ public:
 	 * @param ok Success of event
 	 * @param flags Pointer tags
 	 */
-	void onEvent(bool ok, Flags flags) noexcept final
+	void on_event(bool ok, Flags flags) noexcept final
 	{
 		GRPCFY_DEBUG(logger,
 		             "{} got event, state - {}, ok - {}, flags - {:#02x}",
 		             identity(),
-		             toString(state),
+		             to_string(state),
 		             ok,
 		             flags.to_ulong());
 
@@ -171,9 +171,9 @@ public:
 				assert(false && "illegal state");
 			} break;
 
-			case State::AwaitingRequest: onRequest(flags); break;
-			case State::AwaitingAlarm: onAlarm(flags); break;
-			case State::AwaitingFinish: onFinished(flags); break;
+			case State::AwaitingRequest: on_request(flags); break;
+			case State::AwaitingAlarm: on_alarm(flags); break;
+			case State::AwaitingFinish: on_finished(flags); break;
 		}
 	}
 
@@ -181,15 +181,15 @@ public:
 	/**
 	 * @brief Obtains remote address
 	 */
-	[[nodiscard]] std::string getPeer() const { return server_context.peer(); }
+	[[nodiscard]] std::string get_peer() const { return server_context.peer(); }
 	/**
 	 * @brief Obtains request
 	 */
-	[[nodiscard]] const InboundRequest &getRequest() const noexcept { return inbound_request; }
+	[[nodiscard]] const InboundRequest &get_request() const noexcept { return inbound_request; }
 	/**
 	 * @brief Releases request
 	 */
-	[[nodiscard]] InboundRequest &&releaseRequest() noexcept { return std::move(inbound_request); }
+	[[nodiscard]] InboundRequest &&release_request() noexcept { return std::move(inbound_request); }
 
 	/**
 	 * @brief Writes a response, received from userspace
@@ -198,12 +198,12 @@ public:
 	void respond(ResponseOneOf &&response)
 	{
 		assert(State::AwaitingResponse == state);
-		GRPCFY_DEBUG(logger, "{} userspace responds, state - {}", identity(), toString(state));
+		GRPCFY_DEBUG(logger, "{} userspace responds, state - {}", identity(), to_string(state));
 
 		state = State::AwaitingAlarm;
 		outbound_response = std::move(response);
 
-		processed_alarm.Set(completion_queue, core::rightNow(), tagify(static_cast<Pointer>(state)));
+		processed_alarm.Set(completion_queue, core::right_now(), tagify(static_cast<Pointer>(state)));
 	}
 
 private:
@@ -234,7 +234,7 @@ private:
 	const InboundRequestCallback *const inbound_request_callback;
 
 private:
-	void onRequest(Flags flags)
+	void on_request(Flags flags)
 	{
 		(void)flags;
 		assert(static_cast<Pointer>(State::AwaitingRequest) == flags.to_ulong());
@@ -246,7 +246,7 @@ private:
 		inbound_request_callback->notify(this);
 	}
 
-	void onAlarm(Flags flags)
+	void on_alarm(Flags flags)
 	{
 		(void)flags;
 		assert(static_cast<Pointer>(State::AwaitingAlarm) == flags.to_ulong());
@@ -264,7 +264,7 @@ private:
 		}
 	}
 
-	void onFinished(Flags flags)
+	void on_finished(Flags flags)
 	{
 		(void)flags;
 		assert(static_cast<Pointer>(State::AwaitingFinish) == flags.to_ulong());
@@ -278,7 +278,7 @@ private:
 		return fmt::format("{}[{}]", method_descriptor->full_name(), fmt::ptr(this));
 	}
 
-	static constexpr std::string_view toString(State state) noexcept
+	static constexpr std::string_view to_string(State state) noexcept
 	{
 		switch(state) {
 			default: return "Unknown";

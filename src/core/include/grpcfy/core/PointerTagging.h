@@ -34,7 +34,7 @@ public:
 	 * @brief Check that derived type has enough alignment to fit flags	in pointer
 	 */
 	template<typename Derived>
-	static constexpr void checkFlagsFit()
+	static constexpr void check_flags_fit()
 	{
 		static_assert(alignof(T) >= kFlagsMask);
 		static_assert(alignof(Derived) >= kFlagsMask);

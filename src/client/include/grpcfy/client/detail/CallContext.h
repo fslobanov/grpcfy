@@ -14,18 +14,9 @@ class CallContext : public core::TagThisPointer<CallContext>
 {
 public:
 	/**
-	 * @brief Static RTTI for all call contexts
-	 */
-	enum class Type : uint32_t
-	{
-		SingularCall,
-		ServerStream
-	};
-
-	/**
 	 * @brief Determine, when context work is done, and it should be destroyed
 	 */
-	enum class Aliveness : bool
+	enum class [[nodiscard]] Aliveness : bool
 	{
 		Alive,
 		Dead
@@ -33,11 +24,6 @@ public:
 
 public:
 	virtual ~CallContext() noexcept = default;
-
-	/**
-	 * @brief Obtain real context type
-	 */
-	[[nodiscard]] virtual Type getType() const noexcept = 0;
 
 	/**
 	 * @brief Start an RPC call, pending call events will occur in CompletionQueue
@@ -49,7 +35,7 @@ public:
 	 * @param flags Flags passed on call action start
 	 * @return Call aliveness
 	 */
-	[[nodiscard]] virtual Aliveness onEvent(bool ok, ClientState client_state, Flags flags) noexcept = 0;
+	virtual Aliveness on_event(bool ok, ClientState client_state, Flags flags) noexcept = 0;
 };
 
 }  // namespace grpcfy::client

@@ -21,7 +21,7 @@ using SubscribeFoo = grpcfy::client::ServerStreamCall<foobar::FooStreamRequest,
 struct Printer final
 {
 	template<typename Summary>
-	void printSummary(Summary &&s) noexcept
+	void print_summary(Summary &&s) noexcept
 	{
 		const auto &request_name = decltype(std::decay_t<decltype(s)>::request)::GetDescriptor()->full_name();
 
@@ -40,7 +40,7 @@ struct Printer final
 	}
 
 	template<typename Event>
-	void printEvent(Event &&e) noexcept
+	void print_event(Event &&e) noexcept
 	{
 		const auto &notification_name = std::decay_t<decltype(e)>::value_type::GetDescriptor()->full_name();
 		if(e) {
@@ -53,16 +53,16 @@ struct Printer final
 		}
 	}
 
-	void operator()(GetFoo::Summary &&s) noexcept { printSummary(std::move(s)); }
-	void operator()(SubscribeFoo::Event &&e) noexcept { printEvent(std::move(e)); }
+	void operator()(GetFoo::Summary &&s) noexcept { print_summary(std::move(s)); }
+	void operator()(SubscribeFoo::Event &&e) noexcept { print_event(std::move(e)); }
 };
 
 signed main(signed, char **)
 {
 	grpcfy::client::Options options{"127.0.0.1:50505"};
-	options.setSingularCallDeadline(1s);
-	options.setServerStreamRelaunchPolicy(grpcfy::client::ServerStreamRelaunchPolicy::Relaunch);
-	options.setServerStreamRelaunchInterval(100ms);
+	options.set_singular_call_deadline(1s);
+	options.set_server_stream_relaunch_policy(grpcfy::client::ServerStreamRelaunchPolicy::Relaunch);
+	options.set_server_stream_relaunch_interval(100ms);
 
 	const auto client =
 	    grpcfy::client::ClientEngine<foobar::FooBar::Stub, &foobar::FooBar::NewStub>::make(std::move(options));
@@ -71,14 +71,14 @@ signed main(signed, char **)
 	{
 		foobar::FooStreamRequest request;
 		request.set_value(boost::uuids::to_string(boost::uuids::random_generator{}()));
-		client->launchServerStream(
+		client->launch_server_stream(
 		    SubscribeFoo{grpcfy::client::SessionId{"foo-interested"}, std::move(request), Printer{}});
 	}
 
 	for(auto count = 0UL; count < 1000; ++count) {
 		foobar::FooRequest request;
 		request.set_value(boost::uuids::to_string(boost::uuids::random_generator{}()));
-		client->executeSingularCall(GetFoo{std::move(request), Printer{}});
+		client->execute_singular_call(GetFoo{std::move(request), Printer{}});
 	}
 
 	std::this_thread::sleep_for(10s);
