@@ -236,6 +236,7 @@ private:
 private:
 	void onRequest(Flags flags)
 	{
+		(void)flags;
 		assert(static_cast<Pointer>(State::AwaitingRequest) == flags.to_ulong());
 		GRPCFY_DEBUG(logger, "{} notifying userspace", identity());
 
@@ -247,6 +248,7 @@ private:
 
 	void onAlarm(Flags flags)
 	{
+		(void)flags;
 		assert(static_cast<Pointer>(State::AwaitingAlarm) == flags.to_ulong());
 		state = State::AwaitingFinish;
 
@@ -264,6 +266,7 @@ private:
 
 	void onFinished(Flags flags)
 	{
+		(void)flags;
 		assert(static_cast<Pointer>(State::AwaitingFinish) == flags.to_ulong());
 		GRPCFY_DEBUG(logger, "{} finished, destructing", identity());
 		suicide();

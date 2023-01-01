@@ -41,13 +41,17 @@ signed main(signed, char **)
 	const auto server = server_builder.BuildAndStart();
 	assert(server && "Incorrect address maybe");
 
+#ifdef __linux__
 	if(const auto health_service = server->GetHealthCheckService()) {
+		// For unknown reason SetServingStatus fails on Mac with Exception: EXC_BAD_ACCESS (code=1, address=0x7261426f6fee)
 		health_service->SetServingStatus(foobar::FooBar::service_full_name(), true);
 	}
+#endif
 
 	boost::asio::steady_timer shutdown_timer{io_context};
 	shutdown_timer.expires_after(20s);
 	shutdown_timer.async_wait([&](boost::system::error_code ec) {
+		(void)ec;
 		assert(!ec);
 		io_context.stop();
 	});
@@ -75,11 +79,13 @@ void print(const grpcfy::core::LogMessage &message)
 	};
 
 	static int counter = 0;
-	fmt::print("[{:^5}] {:>6} {} {:<30} {} [thread:{}]\n",
+	fmt::print("[{:^5}] {:>6} {} {:<30} {} [thread:{}] [{}:{}]\n",
 	           format_level(message.level),
 	           ++counter,
 	           message.timestamp,
 	           message.category,
 	           message.message,
-	           message.thread_id);
+	           message.thread_id,
+	           message.location.file,
+	           message.location.line);
 }

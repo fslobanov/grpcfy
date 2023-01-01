@@ -3,6 +3,8 @@
 #include <map>
 #include <memory>
 
+#include <pthread.h>
+
 #include <boost/asio/thread_pool.hpp>
 #include <boost/asio/post.hpp>
 
@@ -91,7 +93,14 @@ public:
 			const auto worker = [this, queue = queue.get()]() noexcept {
 				auto thread_name = options.getServiceName();
 				thread_name.resize(15);
+
+#ifdef __linux__
 				pthread_setname_np(pthread_self(), thread_name.c_str());
+#elif __APPLE__
+				pthread_setname_np(thread_name.c_str());
+#else
+#error "not supported"
+#endif
 
 				setupQueue(queue);
 

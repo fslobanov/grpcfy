@@ -19,6 +19,16 @@ struct SingularMethodMetadata
 	                   grpc::ServerCompletionQueue *completion_queue) = 0;
 };
 
+template<typename Self, typename Context, typename Method>
+void singularMethodMetadataImplCallback(Context *__restrict__ ctx, void *__restrict__ ptr)
+{
+	// We assume that Self if is SingularMethodMetadataImpl
+	const auto self = reinterpret_cast<Self *>(ptr);
+	//Transfer call context ownership to userspace with unique_ptr
+	Method method{std::unique_ptr<Context>{ctx}};
+	self->user_callback(std::move(method));
+}
+
 template<typename AsyncService,
          typename InboundRequest,
          typename OutboundResponse,
@@ -38,7 +48,7 @@ struct SingularMethodMetadataImpl final : public SingularMethodMetadata<AsyncSer
 	                                    UserCallback &&user_callback)
 	    : method_descriptor{method_descriptor}
 	    , user_callback{std::forward<UserCallback>(user_callback)}
-	    , inbound_request_callback{callbackFn, this}
+	    , inbound_request_callback{singularMethodMetadataImplCallback<Self, Context, Method>, this}
 	{
 		assert(SingularMethodMetadataImpl::method_descriptor);
 		//assert(SingularMethodMetadataImpl::user_callback);
@@ -56,13 +66,6 @@ struct SingularMethodMetadataImpl final : public SingularMethodMetadata<AsyncSer
 	const google::protobuf::MethodDescriptor *const method_descriptor;
 	const UserCallback user_callback;
 	const ContextCallback inbound_request_callback;
-
-private:
-	static constexpr auto callbackFn = +[](Context *ctx, void *ptr) noexcept {
-		const auto self = reinterpret_cast<Self *>(ptr);
-		//Transfer call context ownership to userspace with unique_ptr
-		self->user_callback(Method{std::unique_ptr<Context>{ctx}});
-	};
 };
 
 }  // namespace grpcfy::server::detail

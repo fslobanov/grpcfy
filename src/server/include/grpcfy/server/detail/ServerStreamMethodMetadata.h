@@ -21,6 +21,15 @@ struct ServerStreamMethodMetadata
 	                   grpc::ServerCompletionQueue *completion_queue) = 0;
 };
 
+template<typename Self, typename Context, typename Method>
+void serverStreamMethodMetadataImplCallback(Context *__restrict__ ctx, void *__restrict__ ptr)
+{
+	// We assume that Self if is ServerStreamMethodMetadataImpl
+	const auto self = reinterpret_cast<Self *>(ptr);
+	Method method{ctx->getImpl()};
+	self->user_callback(std::move(method));
+}
+
 template<typename AsyncService,
          typename InboundRequest,
          typename OutboundNotification,
@@ -40,8 +49,8 @@ struct ServerStreamMethodMetadataImpl final : public ServerStreamMethodMetadata<
 	explicit ServerStreamMethodMetadataImpl(const google::protobuf::MethodDescriptor *const method_descriptor,
 	                                        UserCallback user_callback)
 	    : method_descriptor{method_descriptor}
-	    , user_provided_callback{std::forward<UserCallback>(user_callback)}
-	    , inbound_request_callback{callbackFn, this}
+	    , user_callback{std::forward<UserCallback>(user_callback)}
+	    , inbound_request_callback{serverStreamMethodMetadataImplCallback<Self, Context, Method>, this}
 	{
 		assert(ServerStreamMethodMetadataImpl::method_descriptor);
 		//assert(ServerStreamMethodMetadataImpl::user_provided_callback);
@@ -57,15 +66,8 @@ struct ServerStreamMethodMetadataImpl final : public ServerStreamMethodMetadata<
 	}
 
 	const google::protobuf::MethodDescriptor *const method_descriptor;
-	UserCallback user_provided_callback;
+	UserCallback user_callback;
 	ContextCallback inbound_request_callback;
-
-private:
-	static constexpr auto callbackFn = +[](Context *ctx, void *ptr) noexcept {
-		const auto self = reinterpret_cast<Self *>(ptr);
-		//Transfer call context ownership to userspace with unique_ptr
-		self->user_provided_callback(Method{ctx->getImpl()});
-	};
 };
 
 }  // namespace grpcfy::server::detail

@@ -18,7 +18,7 @@ struct GetFooHandler final
 	    : ctx{ctx}
 	    , counter{0}
 	{
-		// First, we need to obtain method descriptor from database, be vigilant, method should exist etc
+		// First, we need to obtain method descriptor from database - be vigilant, method should exist etc
 		const auto descriptor = grpcfy::core::findMethod(FooBar::service_full_name(), "GetFoo");
 		// Callback, which proceeds inbound calls, callback should satisfy Callable concept
 		// and accept only 1 argument - inbound call instance
