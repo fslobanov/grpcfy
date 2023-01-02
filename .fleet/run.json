@@ -1,0 +1,134 @@
+{
+    "configurations": [
+        {
+            "name": "debug-make-dir-gcc",
+            "type": "command",
+            "workingDir": ".",
+            "program": "mkdir",
+            "args": [
+                "-p",
+                "cmake-build-debug-gcc"
+            ]
+        },
+        {
+            "name": "debug-configure-all-gcc",
+            "type": "command",
+            "workingDir": "cmake-build-debug-gcc/",
+            "program": "cmake",
+            "dependsOn": ["debug-make-dir-gcc"],
+            "args": [
+                "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+                "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
+                "-DCMAKE_C_COMPILER=gcc-12",
+                "-DCMAKE_CXX_COMPILER=g++-12",
+                ".."
+            ]
+        },
+        {
+            "name": "debug-build-all-gcc",
+            "type": "command",
+            "workingDir": "cmake-build-debug-gcc/",
+            "dependsOn": ["debug-configure-all-gcc"],
+            "program": "cmake",
+            "args": [
+                "--build",".",
+                "--target","all"
+            ]
+        },
+        {
+            "name": "debug-run-tests-gcc",
+            "type": "command",
+            "dependsOn": ["debug-build-all-gcc"],
+            "workingDir": "cmake-build-debug-gcc/",
+            "program": "ctest",
+            "args": ["-C","Debug","-v"]
+        },
+
+        {
+            "name": "debug-make-dir-clang",
+            "type": "command",
+            "workingDir": ".",
+            "program": "mkdir",
+            "args": [
+                "-p",
+                "cmake-build-debug-clang"
+            ]
+        },
+        {
+            "name": "debug-configure-all-clang",
+            "type": "command",
+            "workingDir": "cmake-build-debug-clang/",
+            "dependsOn": ["debug-make-dir-clang"],
+            "program": "cmake",
+            "args": [
+                "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+                "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
+                "-DCMAKE_C_COMPILER=clang-14",
+                "-DCMAKE_CXX_COMPILER=clang++-14",
+                ".."
+            ]
+        },
+        {
+            "name": "debug-build-all-clang",
+            "type": "command",
+            "workingDir": "cmake-build-debug-clang/",
+            "dependsOn": ["debug-configure-all-clang"],
+            "program": "cmake",
+            "args": ["--build",".","--target","all"]
+        },
+        {
+            "name": "debug-run-tests-clang",
+            "type": "command",
+            "workingDir": "cmake-build-debug-clang/",
+            "dependsOn": ["debug-build-all-clang"],
+            "program": "ctest",
+            "args": ["-C","Debug","-v"]
+        },
+
+        {
+            "name": "debug-build-all",
+            "type": "command",
+            "program": "ls",
+            "workingDir": ".",
+            "dependsOn": ["debug-build-all-gcc","debug-build-all-clang"],
+        },
+
+        {
+            "name": "debug-run-tests",
+            "type": "command",
+            "program": "ls",
+            "workingDir": ".",
+            "dependsOn": ["debug-build-all","debug-run-tests-gcc","debug-run-tests-clang"],
+        },
+
+        {
+            "name": "run-example-client-debug-gcc",
+            "type": "command",
+            "program": "cmake-build-debug-gcc/src/example/client/example-grpcfy-client",
+            //"workingDir": "cmake-build-debug-gcc/src/example/client/",
+            "dependsOn": ["debug-build-all-gcc"],
+        },
+        {
+            "name": "run-example-server-debug-gcc",
+            "type": "command",
+            "program": "cmake-build-debug-gcc/src/example/server/example-grpcfy-server",
+            //"workingDir": "cmake-build-debug-gcc/src/example/server/",
+            "dependsOn": ["debug-build-all-gcc"],
+        },
+
+        {
+            "name": "run-example-client-debug-clang",
+            "type": "command",
+            "program": "cmake-build-debug-clang/src/example/client/example-grpcfy-client",
+            //"workingDir": "cmake-build-debug-gcc/src/example/client/",
+            "dependsOn": ["debug-build-all-clang"],
+        },
+        {
+            "name": "run-example-server-debug-clang",
+            "type": "command",
+            "program": "cmake-build-debug-clang/src/example/server/example-grpcfy-server",
+            //"workingDir": "cmake-build-debug-gcc/src/example/server/",
+            "dependsOn": ["debug-build-all-clang"],
+        },
+    ]
+}
