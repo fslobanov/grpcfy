@@ -1,3 +1,5 @@
 .idea
-.fleet
 cmake-build-*
+
+# It's usefull to keep JB Fleet configuration here
+#.fleet
