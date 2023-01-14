@@ -58,7 +58,7 @@ struct ServerStreamMethodMetadataImpl final : public ServerStreamMethodMetadata<
 
 	void spawn(core::LoggerCallbackRef logger_callback,
 	           AsyncService *async_service,
-	           grpc::ServerCompletionQueue *completion_queue) final
+	           grpc::ServerCompletionQueue *completion_queue) final override
 	{
 		(new Context(method_descriptor, logger_callback, async_service, completion_queue, &inbound_request_callback))
 		    ->run();

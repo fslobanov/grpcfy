@@ -53,20 +53,13 @@ public:
 	using CompletionCallback = std::function<void(Summary &&summary)>;
 
 public:
-	SingularCall(Request &&request, CompletionCallback &&callback) noexcept
+	SingularCall(Request &&request) noexcept
 	    : request(std::move(request))
-	    , callback(std::move(callback))
-	{
-	}
-
-	explicit SingularCall(CompletionCallback &&callback) noexcept
-	    : SingularCall({}, std::move(callback))
 	{
 	}
 
 public:
 	Request request;
-	CompletionCallback callback;
 
 public:
 	//TODO lfs: provide getter|setter and verify

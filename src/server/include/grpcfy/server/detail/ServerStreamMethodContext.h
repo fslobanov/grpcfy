@@ -87,19 +87,19 @@ public:
 		GRPCFY_DEBUG(impl->get_logger(), "{} constructed", impl->identity());
 	}
 
-	~ServerStreamMethodContext() final { GRPCFY_DEBUG(impl->get_logger(), "{} destructed", impl->identity()); }
+	~ServerStreamMethodContext() final override { GRPCFY_DEBUG(impl->get_logger(), "{} destructed", impl->identity()); }
 
 public:
 	/**
 	 * @brief Start method execution
 	 */
-	void run() noexcept final { impl->run(); }
+	void run() noexcept final override { impl->run(); }
 	/**
 	 * @brief Handle event received from CompletionQueue
 	 * @param ok Success of event
 	 * @param flags Pointer tags
 	 */
-	void on_event(bool ok, Flags flags) noexcept final { impl->on_event(ok, flags); }
+	void on_event(bool ok, Flags flags) noexcept final override { impl->on_event(ok, flags); }
 	/**
 	 * @brief Obtain internal implementation weak reference, to share it with userspace
 	 */

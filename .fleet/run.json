@@ -65,6 +65,8 @@
                 "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
                 "-DCMAKE_C_COMPILER=clang-14",
                 "-DCMAKE_CXX_COMPILER=clang++-14",
+                "-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl",
+                "-DOPENSSL_LIBRARIES=/usr/local/opt/openssl/lib",
                 ".."
             ]
         },

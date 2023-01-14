@@ -160,12 +160,13 @@ public:
 	 * @tparam SingularCall<Request,Response,Stub,ResponseReader>  specialization
 	 * @param call Call to be executed
 	 */
-	template<typename Call>
-	void execute_singular_call(Call &&call) noexcept
+	template<typename Call, typename Callback>
+	void execute_singular_call(Call &&call, Callback &&callback) noexcept
 	{
-		auto execute = [this, call = std::forward<Call>(call)]() mutable noexcept {
-			do_execute_singular_call(std::move(call));
-		};
+		auto execute =
+		    [this, call = std::forward<Call>(call), callback = std::forward<Callback>(callback)]() mutable noexcept {
+			    do_execute_singular_call(std::forward<Call>(call), std::forward<Callback>(callback));
+		    };
 		boost::asio::post(strand, std::move(execute));
 	}
 
@@ -175,12 +176,13 @@ public:
 	 * @tparam Call ServerStreamCall<Request,Response,Stub,NotificationReader>  specialization
 	 * @param call  Call to be executed
 	 */
-	template<typename Call>
-	void launch_server_stream(Call &&call) noexcept
+	template<typename Call, typename Callback>
+	void launch_server_stream(Call &&call, Callback &&callback) noexcept
 	{
-		auto launch = [this, call = std::forward<Call>(call)]() mutable noexcept {
-			do_launch_server_stream(std::move(call));
-		};
+		auto launch =
+		    [this, call = std::forward<Call>(call), callback = std::forward<Callback>(callback)]() mutable noexcept {
+			    do_launch_server_stream(std::forward<Call>(call), std::forward<Callback>(callback));
+		    };
 		boost::asio::post(strand, std::move(launch));
 	}
 
@@ -247,33 +249,31 @@ private:
 	}
 
 private:
-	template<typename Call, typename Client>
+	template<typename Call, typename Client, typename Callback>
 	friend class grpcfy::client::ServerStreamContext;
 
-	template<typename Call>
-	void do_execute_singular_call(Call &&call)
+	template<typename Call, typename Callback>
+	void do_execute_singular_call(Call &&call, Callback &&callback)
 	{
-		if(!is_running())
-		{
+		if(!is_running()) {
 			return;
 		}
 
-		auto call_context = std::make_unique<SingularCallContext<Call>>(
+		auto call_context = std::make_unique<SingularCallContext<Call, Callback>>(
 		    queue,
 		    *stub,
 		    std::move(call.request),
 		    call.deadline ? *call.deadline : options.get_singular_call_deadline(),
-		    std::move(call.callback));
+		    std::forward<Callback>(callback));
 
 		call_context.release()->run();
 	}
 
-	template<typename Call>
-	void do_launch_server_stream(Call &&call)
+	template<typename Call, typename Callback>
+	void do_launch_server_stream(Call &&call, Callback &&callback)
 	{
 		assert(!call.session_id.empty());
-		if(!is_running())
-		{
+		if(!is_running()) {
 			return;
 		}
 
@@ -313,7 +313,7 @@ private:
 		        strand,
 		        (call.reconnect_interval ? *call.reconnect_interval : options.get_server_stream_relaunch_interval())));
 
-		auto stream = std::make_unique<ServerStreamContext<Call, ClientEngine>>(
+		auto stream = std::make_unique<ServerStreamContext<Call, ClientEngine, Callback>>(
 		    this,
 		    &queue,
 		    &*stub,
@@ -322,7 +322,7 @@ private:
 		    std::move(call.session_id),
 		    call.deadline ? *call.deadline : options.get_server_stream_deadline(),
 		    call.reconnect_policy ? *call.reconnect_policy : options.get_server_stream_relaunch_policy(),
-		    std::move(call.callback));
+		    std::forward<Callback>(callback));
 
 		stream.release()->run();
 	}
@@ -330,8 +330,7 @@ private:
 	void do_shutdown_server_stream(ServerStreamShutdown &&shutdown) noexcept
 	{
 		assert(!shutdown.session_id.empty());
-		if(!is_running())
-		{
+		if(!is_running()) {
 			return;
 		}
 

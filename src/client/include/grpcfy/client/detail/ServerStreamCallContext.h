@@ -10,7 +10,7 @@ namespace grpcfy::client {
  * @tparam Call ServerStreamCall<T> specialization
  * @tparam Client ClientEngine to be run on
  */
-template<typename Call, typename Client>
+template<typename Call, typename Client, typename EventCallback>
 class ServerStreamContext final : public CallContext
 {
 public:
@@ -18,7 +18,6 @@ public:
 	using Request = typename Call::Request;
 	using Notification = typename Call::Notification;
 	using Event = typename Call::Event;
-	using EventCallback = typename Call::EventCallback;
 
 	constexpr const static auto MakeReaderFn = Call::MakeReaderFn;
 	constexpr const static Flags kReadFlags = 0b1UL;
@@ -44,18 +43,17 @@ public:
 	    , state(State::Connecting)
 	    , reconnect_policy(reconnect_policy)
 	    , notification_buffer(std::nullopt)
-	    , callback(std::move(callback))
+	    , callback(std::forward<EventCallback>(callback))
 	{
 		check_flags_fit<ServerStreamContext>();
 
 		assert(ServerStreamContext::client);
 		assert(ServerStreamContext::context);
 		assert(ServerStreamContext::reader);
-		assert(ServerStreamContext::callback);
 		assert(ServerStreamContext::deadline.count() > 0);
 	}
 
-	void run() noexcept final { reader->StartCall(tagify()); }
+	void run() noexcept final override { reader->StartCall(tagify()); }
 
 	Aliveness on_event(bool ok, ClientState client_state, Flags flags) noexcept final
 	{

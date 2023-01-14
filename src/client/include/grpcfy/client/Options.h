@@ -111,7 +111,10 @@ public:
 	 * @brief Obtains server stream relaunch interval
 	 * @return Default interval value
 	 */
-	[[nodiscard]] Duration get_server_stream_relaunch_interval() const noexcept { return server_stream_relaunch_interval; }
+	[[nodiscard]] Duration get_server_stream_relaunch_interval() const noexcept
+	{
+		return server_stream_relaunch_interval;
+	}
 	/**
 	 * @brief Sets default ServerStreamCall relaunch interval
 	 * @param interval Interval to be set

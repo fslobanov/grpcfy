@@ -9,7 +9,7 @@ namespace grpcfy::client {
  * Internal SingularCall runtime
  * @tparam Call SingularCall<T> specialization
  */
-template<typename Call>
+template<typename Call, typename CompletionCallback>
 class SingularCallContext final : public CallContext
 {
 public:
@@ -24,9 +24,9 @@ public:
 	                    Stub &stub,
 	                    Request &&request,
 	                    std::chrono::milliseconds deadline,
-	                    typename Call::CompletionCallback &&callback) noexcept
+	                    CompletionCallback &&callback) noexcept
 	    : request(std::move(request))
-	    , callback(std::move(callback))
+	    , callback(std::forward<CompletionCallback>(callback))
 	    , context(setup_context(deadline))
 	    , reader((stub.*Call::MakeReaderFn)(&*context, SingularCallContext::request, &queue))
 	{
@@ -34,21 +34,19 @@ public:
 
 		assert(SingularCallContext::reader);
 		assert(SingularCallContext::context);
-		assert(SingularCallContext::callback);
 	}
 
 public:
-	void run() noexcept final
+	void run() noexcept final override
 	{
 		reader->StartCall();
 		reader->Finish(&response, &status, tagify());
 	}
 
-	Aliveness on_event(bool ok, ClientState client_state, Flags flags) noexcept final
+	Aliveness on_event(bool ok, ClientState client_state, Flags flags) noexcept final override
 	{
 		(void)client_state;
 		(void)flags;
-		//const SuicideGuard guard{this};
 		auto result = (!ok || !status.ok()) ? Result{std::move(status)} : Result{std::move(response)};
 		callback(Summary{std::move(request), std::move(result)});
 		return Aliveness::Dead;
@@ -65,7 +63,7 @@ public:
 private:
 	Request request;
 	Response response;
-	typename Call::CompletionCallback callback;
+	CompletionCallback callback;
 
 	std::unique_ptr<grpc::ClientContext> context;
 	grpc::Status status;

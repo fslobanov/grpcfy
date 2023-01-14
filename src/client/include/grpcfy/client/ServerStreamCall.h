@@ -61,16 +61,15 @@ public:
 	constexpr const static auto MakeReaderFn = MakeReader;
 
 public:
-	ServerStreamCall(SessionId &&session_id, Request &&request, EventCallback &&callback) noexcept
+	ServerStreamCall(SessionId &&session_id, Request &&request) noexcept
 	    : session_id{std::move(session_id)}
 	    , request(std::move(request))
-	    , callback(std::move(callback))
 	{
 		assert(!ServerStreamCall::session_id.empty());
 	}
 
-	ServerStreamCall(SessionId &&session_id, EventCallback &&callback) noexcept
-	    : ServerStreamCall(std::move(session_id), {}, std::move(callback))
+	ServerStreamCall(SessionId &&session_id) noexcept
+	    : ServerStreamCall(std::move(session_id), {})
 	{
 	}
 

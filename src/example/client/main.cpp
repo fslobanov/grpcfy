@@ -71,14 +71,14 @@ signed main(signed, char **)
 	{
 		foobar::FooStreamRequest request;
 		request.set_value(boost::uuids::to_string(boost::uuids::random_generator{}()));
-		client->launch_server_stream(
-		    SubscribeFoo{grpcfy::client::SessionId{"foo-interested"}, std::move(request), Printer{}});
+		client->launch_server_stream(SubscribeFoo{grpcfy::client::SessionId{"foo-interested"}, std::move(request)},
+		                             Printer{});
 	}
 
 	for(auto count = 0UL; count < 1000; ++count) {
 		foobar::FooRequest request;
 		request.set_value(boost::uuids::to_string(boost::uuids::random_generator{}()));
-		client->execute_singular_call(GetFoo{std::move(request), Printer{}});
+		client->execute_singular_call(GetFoo{std::move(request)}, Printer{});
 	}
 
 	std::this_thread::sleep_for(10s);

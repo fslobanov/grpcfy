@@ -120,13 +120,13 @@ public:
 		//TODO lfs: use server_context.AsyncNotifyWhenDone to prevent unnecessary response if outdated
 	}
 
-	~SingularMethodContext() final { GRPCFY_DEBUG(logger, "{} destructed", identity()); }
+	~SingularMethodContext() final override { GRPCFY_DEBUG(logger, "{} destructed", identity()); }
 
 public:
 	/**
 	 * @brief Start method execution
 	 */
-	void run() noexcept final
+	void run() noexcept final override
 	{
 		assert(State::StandingBy == state && "illegal state");
 		GRPCFY_DEBUG(logger, "{} running", identity());
@@ -146,7 +146,7 @@ public:
 	 * @param ok Success of event
 	 * @param flags Pointer tags
 	 */
-	void on_event(bool ok, Flags flags) noexcept final
+	void on_event(bool ok, Flags flags) noexcept final override
 	{
 		GRPCFY_DEBUG(logger,
 		             "{} got event, state - {}, ok - {}, flags - {:#02x}",
